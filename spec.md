@@ -22,8 +22,8 @@ Secondary: Other learners who want to retain knowledge from diverse digital sour
 ### API-First Design
 - **Core**: Python/FastAPI backend
 - **Deployment**: Fly.io with auto-scaling
-- **Database**: PostgreSQL with pgvector for embeddings
-- **Storage**: Content storage with full-text search
+- **Vector Database**: Chroma (local for dev, Chroma Cloud for production)
+- **Storage**: Content storage with semantic search and full-text search
 - **Monitoring**: Dual strategy - Fly.io Prometheus + Logfire
 
 ### Multi-Agent AI Architecture
@@ -64,30 +64,38 @@ Following Anthropic's agent patterns, using **Orchestrator-Workers** with **Eval
 
 ### Quality Assurance System
 
-Using PydanticAI evals module:
-- **LLM-as-judge** evaluating against Matuschak's principles
+Using LangChain evaluation framework:
+- **LLM-as-judge** pattern for evaluating prompts against Matuschak's principles:
+  - Focused and specific targeting
+  - Clear and precise language
+  - Appropriate cognitive load
+  - Meaningful retrieval practice
+- **LangChain Components**:
+  - Custom evaluators for prompt quality scoring
+  - Chain-based evaluation pipelines
+  - Feedback integration with LangSmith (optional)
 - Performance tracking from Mochi review sessions
 - Continuous improvement through feedback loops
-- A/B testing of prompt generation strategies
+- Simple evaluation process optimized for single-user feedback
 
 ## Feature Roadmap
 
-### Phase 1: MVP (Week 1-2)
+### Phase 1: MVP
 **Goal**: Process single URL, review prompts, send to Mochi
 
 Features:
-- Web scraping for articles
-- Basic prompt generation with Claude/GPT-5
+- Web content conversion to markdown via JinaAI API
+- Basic prompt generation with GPT-5 models
 - Web interface for prompt review/editing
 - Mochi API integration
-- Basic content storage
+- Chroma vector storage for content
 
 Success Criteria:
 - Can process a blog post
 - Generate 5-10 quality prompts
 - Successfully create Mochi cards
 
-### Phase 2: Raindrop Integration (Week 3)
+### Phase 2: Raindrop Integration
 **Goal**: Bulk process bookmarked content
 
 Features:
@@ -101,7 +109,7 @@ Success Criteria:
 - Detect and skip duplicates
 - Organize into appropriate decks
 
-### Phase 3: Notion Integration (Week 4)
+### Phase 3: Notion Integration
 **Goal**: Process Snipd podcast highlights
 
 Features:
@@ -115,21 +123,21 @@ Success Criteria:
 - Maintain source attribution
 - Generate contextual prompts
 
-### Phase 4: Multi-Format Support (Week 5-6)
+### Phase 4: Multi-Format Support
 **Goal**: Expand content source types
 
 Features:
-- PDF processing (uploaded and URL)
-- YouTube transcript extraction
-- Markdown file support
-- Format-specific prompt strategies
+- PDF processing (uploaded and URL) with conversion to markdown
+- YouTube transcript extraction and markdown conversion
+- Native markdown file support
+- Format-specific prompt strategies with unified markdown pipeline
 
 Success Criteria:
 - Process technical PDF documentation
 - Extract video key points
 - Handle various content densities
 
-### Phase 5: Automation & Intelligence (Week 7-8)
+### Phase 5: Automation & Intelligence
 **Goal**: Background processing with high confidence
 
 Features:
@@ -157,10 +165,10 @@ Success Criteria:
 
 ```python
 # Content Processing
-POST /api/process/url
-POST /api/process/pdf
-POST /api/process/text
-POST /api/process/batch
+POST /api/process/url          # Uses JinaAI for web-to-markdown
+POST /api/process/pdf          # Converts PDF to markdown
+POST /api/process/text         # Direct markdown processing
+POST /api/process/batch        # Batch markdown conversion
 
 # Integration Management
 GET  /api/sources/raindrop/sync
@@ -183,6 +191,10 @@ POST /api/mochi/cards/batch
 GET  /api/analytics/performance
 POST /api/feedback/prompt/{id}
 GET  /api/templates
+
+# Vector Search
+POST /api/search/semantic      # Chroma-powered semantic search
+GET  /api/search/similar/{content_id}
 ```
 
 ### Data Models
@@ -194,8 +206,8 @@ Content:
   - source_url: str
   - source_type: Enum[web, pdf, youtube, notion, raindrop]
   - raw_text: str
-  - processed_text: str
-  - embedding: vector
+  - markdown_content: str      # Unified markdown format
+  - chroma_id: str            # Reference to Chroma vector store
   - metadata: JSON
   - created_at: datetime
   - hash: str
@@ -218,18 +230,38 @@ QualityMetric:
   - score: float
   - feedback: JSON
   - created_at: datetime
+
+ChromaDocument:
+  - collection_name: str
+  - document_id: str
+  - content_id: UUID         # Link back to Content model
+  - metadata: JSON
 ```
 
 ### Technology Stack
 
 - **Backend**: FastAPI, SQLAlchemy 2.0, Pydantic
-- **AI**: PydanticAI, Claude 3 Opus/GPT-5
-- **Database**: PostgreSQL with pgvector
+- **AI Framework**: LangChain with native Chroma integration
+  - `langchain-chroma` package for vector store operations
+  - LangGraph for agent orchestration and state management
+  - Built-in evaluation framework for quality assurance
+- **AI Models**: GPT-5 family with tiered usage:
+  - GPT-5 Nano ($0.05/1M input): Simple extraction, classification
+  - GPT-5 Mini ($0.25/1M input): Standard prompt generation
+  - GPT-5 Standard ($1.25/1M input): Complex analysis, quality review
+- **Vector Database**: Chroma
+  - Local development: Free open-source instance
+  - Production: Chroma Cloud with persistent collections
+  - Semantic search with embeddings
+  - Collection forking for versioning
+- **Content Processing**:
+  - JinaAI Reader API for web-to-markdown (rate-limited free tier)
+  - ReaderLM-v2 for complex HTML structures
 - **Cache**: Redis
 - **Task Queue**: Celery + Redis
 - **Deployment**: Docker on Fly.io
 - **Monitoring**: Logfire + Prometheus
-- **Testing**: pytest with PydanticAI evals
+- **Testing**: pytest with LangChain evaluation tools
 
 ## Security & Privacy
 
@@ -263,10 +295,41 @@ QualityMetric:
 
 ## Budget Considerations
 
-- **AI Costs**: ~$50-100/month for API calls (personal use)
-- **Infrastructure**: Fly.io ~$20-50/month
-- **Database**: Included in Fly.io or separate managed instance
-- **Mochi**: Existing subscription
+### Detailed Cost Breakdown (Based on 2025 Pricing)
+
+#### AI Costs (OpenAI GPT-5 Family)
+- **GPT-5 Nano**: $0.05/1M input tokens, $0.40/1M output tokens
+- **GPT-5 Mini**: $0.25/1M input tokens, $2.00/1M output tokens
+- **GPT-5 Standard**: $1.25/1M input tokens, $10.00/1M output tokens
+- **Caching Discount**: 90% off for recently used input tokens
+- **Estimated Monthly**: $15-30 (processing ~200 articles with smart model selection)
+
+#### Chroma Vector Database
+- **Development**: Free (local instance)
+- **Production** (Chroma Cloud Starter):
+  - $5 free credits to start
+  - Writing: $2.50/GiB (one-time)
+  - Storage: $0.33/GiB/month
+  - Queries: $0.0075/TiB queried + $0.09/GiB returned
+  - **Estimated Monthly**: $8-15 (for ~5GB storage and moderate queries)
+
+#### Fly.io Infrastructure
+- **Small FastAPI App** (shared-cpu-1x, 256MB): $1.94/month
+- **Persistent Volume** (10GB): $1.50/month
+- **Dedicated IPv4**: $2/month (optional)
+- **Bandwidth**: ~$2-5/month (100GB free in US/EU)
+- **Estimated Monthly**: $7-10
+
+#### JinaAI Reader API
+- **Free Tier**: 20 requests/minute without key, 200/minute with free key
+- **Enhanced Model**: ReaderLM-v2 costs 3x tokens for complex content
+- **Estimated Monthly**: $0-10 (likely free for personal use volume)
+
+#### Total Monthly Costs
+- **Development Phase**: ~$0 (all local/free tiers)
+- **Production Minimal**: ~$30-40/month
+- **Production Standard**: ~$50-70/month
+- **Mochi**: Existing subscription (not included)
 
 ## Risk Mitigation
 
@@ -282,6 +345,9 @@ QualityMetric:
 3. **Quality-Focused**: Better fewer good prompts than many poor ones
 4. **User-Controlled**: Always allow manual override
 5. **Learning System**: Continuously improve from feedback
+6. **Markdown-First**: Convert all content to markdown for consistent processing
+7. **Cost-Optimized**: Use appropriate model sizes (GPT-5 nano to full) based on task complexity
+8. **Vector-Native**: Leverage Chroma for semantic search and content discovery
 
 ## Next Steps
 

@@ -1,0 +1,37 @@
+[
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Bash"
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Bash"
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Update"
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Fetch"
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission to use Fetch"
+  }
+]

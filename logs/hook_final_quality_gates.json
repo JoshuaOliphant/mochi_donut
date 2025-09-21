@@ -1,0 +1,87 @@
+[
+  {
+    "timestamp": "2025-09-19T08:14:55.761812",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 1,
+      "changes": {
+        "added": [],
+        "modified": [],
+        "deleted": [],
+        "untracked": [
+          "logs/"
+        ]
+      },
+      "file_types": {
+        "python": 0,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 0,
+        "tests": 0
+      },
+      "timestamp": "2025-09-19T08:14:55.759929"
+    },
+    "test_results": {
+      "tests_exist": false,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 0,
+      "issues_found": []
+    },
+    "security_results": {
+      "checks_performed": [],
+      "issues_found": [],
+      "recommendations": []
+    }
+  },
+  {
+    "timestamp": "2025-09-21T15:35:11.382650",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 3,
+      "changes": {
+        "added": [],
+        "modified": [
+          "pec.md"
+        ],
+        "deleted": [],
+        "untracked": [
+          "logs/",
+          "spec_feedback.md"
+        ]
+      },
+      "file_types": {
+        "python": 0,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 0,
+        "tests": 0
+      },
+      "timestamp": "2025-09-21T15:35:11.380565"
+    },
+    "test_results": {
+      "tests_exist": false,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 0,
+      "issues_found": []
+    },
+    "security_results": {
+      "checks_performed": [],
+      "issues_found": [],
+      "recommendations": []
+    }
+  }
+]

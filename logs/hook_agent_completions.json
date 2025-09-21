@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2025-09-21T15:35:03.603977",
+    "hook": "agent_completion_check",
+    "agent_context": {
+      "agent_type": "unknown",
+      "files_modified": []
+    },
+    "quality_results": {
+      "status": "skipped",
+      "reason": "No Python files modified"
+    },
+    "compliance_results": {
+      "agent_type": "unknown",
+      "compliance_issues": [],
+      "status": "passed"
+    }
+  }
+]

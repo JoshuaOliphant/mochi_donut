@@ -1,0 +1,26 @@
+[
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "I added some feedback in @mochi_donut/spec_feedback.md "
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "acceptEdits",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "For the costs in the budget considerations section, you should look up the actual websites with the information to make informed predictions. Also look up information on any of the technology that we are using that you are less familiar with so you can update the spec with better information. You should use parallel research subagents."
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "acceptEdits",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Continue, sorry you can look at all of the websites needed"
+  }
+]
