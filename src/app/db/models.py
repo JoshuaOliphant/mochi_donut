@@ -203,6 +203,13 @@ class Prompt(Base):
     confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     difficulty_level: Mapped[Optional[int]] = mapped_column(nullable=True)  # 1-5 scale
 
+    # Status tracking
+    status: Mapped[PromptStatus] = mapped_column(
+        Enum(PromptStatus),
+        default=PromptStatus.PENDING,
+        nullable=False
+    )
+
     # Versioning and editing
     version: Mapped[int] = mapped_column(default=1, nullable=False)
     is_edited: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -258,6 +265,7 @@ class Prompt(Base):
         Index("ix_prompt_mochi_card", "mochi_card_id"),
         Index("ix_prompt_created_at", "created_at"),
         Index("ix_prompt_content_type", "content_id", "prompt_type"),
+        Index("ix_prompt_status", "status"),
     )
 
 

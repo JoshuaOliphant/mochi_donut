@@ -14,18 +14,24 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.core.database import get_db
-from src.app.schemas.content import ContentCreate
-from src.app.schemas.prompt import PromptUpdate
-from src.app.repositories.content import ContentRepository
-from src.app.repositories.prompt import PromptRepository
-from src.app.services.content_processor import ContentProcessor
+from uuid import UUID
+
+from app.db.session import get_db
+from app.db.models import PromptStatus
+from app.schemas.content import ContentCreate
+from app.schemas.prompt import PromptUpdate
+from app.repositories.content import ContentRepository
+from app.repositories.prompt import PromptRepository
+# ContentProcessor import - will be added when service is implemented
+# from app.services.content_processor import ContentProcessor
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Initialize templates
-templates = Jinja2Templates(directory="src/app/web/templates")
+# Initialize templates - use path from current file location
+import os
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 # Create router
 web_router = APIRouter(prefix="/web", tags=["web"])
@@ -625,3 +631,330 @@ def _get_mock_agent_performance() -> List[Dict[str, Any]]:
             "avg_time": 5.2
         }
     ]
+
+
+# Prompt Review Routes (Step 9 implementation)
+
+@web_router.get("/prompts/{content_id}", response_class=HTMLResponse)
+async def list_content_prompts(
+    request: Request,
+    content_id: UUID,
+    status: Optional[str] = "all",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Display list of prompts for a content item with filtering.
+
+    Args:
+        request: FastAPI request object
+        content_id: UUID of the content
+        status: Filter by status (all, pending, approved, rejected)
+        db: Database session
+    """
+    prompt_repo = PromptRepository(db)
+
+    # Get all prompts for this content
+    prompts = await prompt_repo.get_by_content(content_id, include_quality_metrics=True)
+
+    # Filter by status if not 'all'
+    if status and status != "all":
+        try:
+            status_enum = PromptStatus[status.upper()]
+            prompts = [p for p in prompts if p.status == status_enum]
+        except KeyError:
+            pass  # Invalid status, show all
+
+    # Calculate counts for filter buttons
+    all_prompts = await prompt_repo.get_by_content(content_id)
+    counts = {
+        "total": len(all_prompts),
+        "pending": sum(1 for p in all_prompts if p.status == PromptStatus.PENDING),
+        "approved": sum(1 for p in all_prompts if p.status == PromptStatus.APPROVED),
+        "rejected": sum(1 for p in all_prompts if p.status == PromptStatus.REJECTED),
+    }
+
+    # Prepare prompts with quality scores
+    for prompt in prompts:
+        _add_quality_scores(prompt)
+
+    return templates.TemplateResponse(
+        "prompts/list.html",
+        {
+            "request": request,
+            "workflow_id": str(content_id),
+            "prompts": prompts,
+            "current_status": status,
+            "counts": counts,
+        }
+    )
+
+
+@web_router.get("/prompts/{content_id}/{prompt_id}", response_class=HTMLResponse)
+async def review_single_prompt(
+    request: Request,
+    content_id: UUID,
+    prompt_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Display individual prompt review page.
+
+    Args:
+        request: FastAPI request object
+        content_id: UUID of the content
+        prompt_id: UUID of the prompt
+        db: Database session
+    """
+    prompt_repo = PromptRepository(db)
+
+    # Get the prompt with quality metrics
+    prompt = await prompt_repo.get_with_quality_metrics(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    # Get all prompts for navigation
+    all_prompts = await prompt_repo.get_by_content(content_id)
+    prompt_ids = [p.id for p in all_prompts]
+
+    # Find previous/next
+    current_index = prompt_ids.index(prompt_id)
+    has_previous = current_index > 0
+    has_next = current_index < len(prompt_ids) - 1
+    previous_id = prompt_ids[current_index - 1] if has_previous else None
+    next_id = prompt_ids[current_index + 1] if has_next else None
+
+    # Prepare quality scores
+    _add_quality_scores(prompt)
+
+    return templates.TemplateResponse(
+        "prompts/review.html",
+        {
+            "request": request,
+            "prompt": prompt,
+            "has_previous": has_previous,
+            "has_next": has_next,
+            "previous_id": previous_id,
+            "next_id": next_id,
+        }
+    )
+
+
+@web_router.get("/prompts/{content_id}/{prompt_id}/edit", response_class=HTMLResponse)
+async def edit_prompt_form(
+    request: Request,
+    content_id: UUID,
+    prompt_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Return HTMX edit form for the prompt."""
+    prompt_repo = PromptRepository(db)
+    prompt = await prompt_repo.get(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    return templates.TemplateResponse(
+        "components/edit_form.html",
+        {
+            "request": request,
+            "prompt": prompt,
+        }
+    )
+
+
+@web_router.get("/prompts/{content_id}/{prompt_id}/cancel-edit", response_class=HTMLResponse)
+async def cancel_edit_prompt(
+    request: Request,
+    content_id: UUID,
+    prompt_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Cancel edit and return to view mode."""
+    prompt_repo = PromptRepository(db)
+    prompt = await prompt_repo.get_with_quality_metrics(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    _add_quality_scores(prompt)
+
+    return templates.TemplateResponse(
+        "prompts/review.html",
+        {
+            "request": request,
+            "prompt": prompt,
+        }
+    )
+
+
+@web_router.put("/prompts/{content_id}/{prompt_id}", response_class=HTMLResponse)
+async def update_prompt_content(
+    request: Request,
+    content_id: UUID,
+    prompt_id: UUID,
+    question: str = Form(...),
+    answer: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update prompt content via HTMX form submission."""
+    prompt_repo = PromptRepository(db)
+    prompt = await prompt_repo.get(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    # Update prompt
+    update_data = PromptUpdate(
+        question=question,
+        answer=answer,
+        edit_reason="Manual edit via web interface"
+    )
+    await prompt_repo.update(prompt_id, update_data)
+
+    # Reload with quality metrics
+    updated_prompt = await prompt_repo.get_with_quality_metrics(prompt_id)
+    _add_quality_scores(updated_prompt)
+
+    # Return view-only content
+    return templates.TemplateResponse(
+        "prompts/review.html",
+        {
+            "request": request,
+            "prompt": updated_prompt,
+            "messages": [{"type": "success", "text": "Prompt updated successfully"}],
+        }
+    )
+
+
+@web_router.post("/prompts/{content_id}/{prompt_id}/approve", response_class=HTMLResponse)
+async def approve_single_prompt(
+    content_id: UUID,
+    prompt_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve a prompt (HTMX action)."""
+    prompt_repo = PromptRepository(db)
+    prompt = await prompt_repo.get(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    # Update status
+    prompt.status = PromptStatus.APPROVED
+    await db.commit()
+
+    return HTMLResponse(
+        content='<div class="text-green-600">Prompt approved!</div>',
+        status_code=200,
+        headers={"HX-Trigger": "promptUpdated"}
+    )
+
+
+@web_router.post("/prompts/{content_id}/{prompt_id}/reject", response_class=HTMLResponse)
+async def reject_single_prompt(
+    content_id: UUID,
+    prompt_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Reject a prompt (HTMX action)."""
+    prompt_repo = PromptRepository(db)
+    prompt = await prompt_repo.get(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    # Update status
+    prompt.status = PromptStatus.REJECTED
+    await db.commit()
+
+    return HTMLResponse(
+        content='<div class="text-red-600">Prompt rejected!</div>',
+        status_code=200,
+        headers={"HX-Trigger": "promptUpdated"}
+    )
+
+
+@web_router.post("/prompts/{content_id}/{prompt_id}/refine", response_class=HTMLResponse)
+async def refine_single_prompt(
+    content_id: UUID,
+    prompt_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Request refinement for a prompt (HTMX action)."""
+    prompt_repo = PromptRepository(db)
+    prompt = await prompt_repo.get(prompt_id)
+    if not prompt or prompt.content_id != content_id:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    # Update status to needs review
+    prompt.status = PromptStatus.NEEDS_REVIEW
+    await db.commit()
+
+    return HTMLResponse(
+        content='<div class="text-yellow-600">Refinement requested!</div>',
+        status_code=200,
+        headers={"HX-Trigger": "promptUpdated"}
+    )
+
+
+@web_router.post("/prompts/{content_id}/approve-all", response_class=HTMLResponse)
+async def approve_all_content_prompts(
+    content_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve all prompts for a content item (HTMX action)."""
+    prompt_repo = PromptRepository(db)
+    prompts = await prompt_repo.get_by_content(content_id)
+
+    for prompt in prompts:
+        if prompt.status == PromptStatus.PENDING:
+            prompt.status = PromptStatus.APPROVED
+
+    await db.commit()
+
+    return HTMLResponse(
+        content=f'<div class="text-green-600">Approved {len(prompts)} prompts!</div>',
+        status_code=200,
+        headers={"HX-Trigger": "promptsUpdated", "HX-Refresh": "true"}
+    )
+
+
+@web_router.post("/prompts/{content_id}/reject-all", response_class=HTMLResponse)
+async def reject_all_content_prompts(
+    content_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Reject all prompts for a content item (HTMX action)."""
+    prompt_repo = PromptRepository(db)
+    prompts = await prompt_repo.get_by_content(content_id)
+
+    for prompt in prompts:
+        if prompt.status == PromptStatus.PENDING:
+            prompt.status = PromptStatus.REJECTED
+
+    await db.commit()
+
+    return HTMLResponse(
+        content=f'<div class="text-red-600">Rejected {len(prompts)} prompts!</div>',
+        status_code=200,
+        headers={"HX-Trigger": "promptsUpdated", "HX-Refresh": "true"}
+    )
+
+
+def _add_quality_scores(prompt):
+    """Add quality_scores attribute to prompt object."""
+    if prompt.quality_metrics:
+        scores = {m.metric_type.value: m.score for m in prompt.quality_metrics}
+        prompt.quality_scores = {
+            "overall": prompt.quality_score or 0.0,
+            "focused": scores.get("focus_specificity", 0.0),
+            "precise": scores.get("precision_clarity", 0.0),
+            "consistent": scores.get("cognitive_load", 0.0),
+            "tractable": scores.get("retrieval_practice", 0.0),
+            "effortful": scores.get("overall_quality", 0.0),
+        }
+    else:
+        default_score = prompt.quality_score or 0.0
+        prompt.quality_scores = {
+            "overall": default_score,
+            "focused": default_score,
+            "precise": default_score,
+            "consistent": default_score,
+            "tractable": default_score,
+            "effortful": default_score,
+        }

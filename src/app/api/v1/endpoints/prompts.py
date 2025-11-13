@@ -41,7 +41,7 @@ from app.schemas.prompt import (
     MochiBatchSyncRequest,
     MochiBatchSyncResponse
 )
-from app.db.models import PromptType, QualityMetricType
+from app.db.models import PromptType, PromptStatus, QualityMetricType
 
 
 router = APIRouter()
@@ -186,13 +186,13 @@ async def update_prompt(
     "/{prompt_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Prompt",
-    description="Delete prompt and associated quality metrics"
+    description="Soft delete prompt by setting status to rejected"
 )
 async def delete_prompt(
     prompt_id: str,
     prompt_repo: PromptRepository = Depends(get_prompt_repository)
 ):
-    """Delete prompt by ID."""
+    """Soft delete prompt by ID."""
     try:
         prompt_uuid = uuid.UUID(prompt_id)
     except ValueError:
@@ -201,8 +201,13 @@ async def delete_prompt(
             detail="Invalid prompt ID format"
         )
 
-    deleted = await prompt_repo.delete(prompt_uuid)
-    if not deleted:
+    # Soft delete by rejecting the prompt
+    deleted_prompt = await prompt_repo.reject_prompt(
+        prompt_uuid,
+        rejection_reason="Deleted by user"
+    )
+
+    if not deleted_prompt:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Prompt not found"
@@ -436,6 +441,145 @@ async def get_prompts_needing_review(
     )
 
     return [PromptSummary.model_validate(prompt) for prompt in prompts]
+
+
+# Approval/rejection endpoints
+@router.post(
+    "/{prompt_id}/approve",
+    response_model=PromptResponse,
+    summary="Approve Prompt",
+    description="Approve prompt and optionally create Mochi card"
+)
+async def approve_prompt(
+    prompt_id: str,
+    background_tasks: BackgroundTasks,
+    prompt_repo: PromptRepository = Depends(get_prompt_repository),
+    create_mochi_card: bool = Query(False, description="Auto-create Mochi card")
+) -> PromptResponse:
+    """Approve a prompt."""
+    try:
+        prompt_uuid = uuid.UUID(prompt_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid prompt ID format"
+        )
+
+    approved_prompt = await prompt_repo.approve_prompt(
+        prompt_uuid,
+        create_mochi_card=create_mochi_card
+    )
+
+    if not approved_prompt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prompt not found"
+        )
+
+    # TODO: If create_mochi_card is True, trigger Mochi card creation in background
+    if create_mochi_card:
+        # background_tasks.add_task(create_mochi_card_task, approved_prompt.id)
+        pass
+
+    return PromptResponse.model_validate(approved_prompt)
+
+
+@router.post(
+    "/{prompt_id}/reject",
+    response_model=PromptResponse,
+    summary="Reject Prompt",
+    description="Reject prompt with optional reason"
+)
+async def reject_prompt(
+    prompt_id: str,
+    rejection_reason: Optional[str] = Query(None, max_length=500, description="Reason for rejection"),
+    prompt_repo: PromptRepository = Depends(get_prompt_repository)
+) -> PromptResponse:
+    """Reject a prompt."""
+    try:
+        prompt_uuid = uuid.UUID(prompt_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid prompt ID format"
+        )
+
+    rejected_prompt = await prompt_repo.reject_prompt(
+        prompt_uuid,
+        rejection_reason=rejection_reason
+    )
+
+    if not rejected_prompt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prompt not found"
+        )
+
+    return PromptResponse.model_validate(rejected_prompt)
+
+
+# Bulk operations endpoint
+@router.post(
+    "/batch",
+    response_model=Dict[str, Any],
+    summary="Batch Operations",
+    description="Perform bulk operations on multiple prompts (approve, reject, delete)"
+)
+async def batch_operations(
+    prompt_ids: List[str] = Query(..., description="List of prompt IDs"),
+    operation: str = Query(..., description="Operation to perform: approve, reject, or delete"),
+    rejection_reason: Optional[str] = Query(None, max_length=500, description="Rejection reason (for reject/delete)"),
+    create_mochi_card: bool = Query(False, description="Auto-create Mochi cards (for approve)"),
+    prompt_repo: PromptRepository = Depends(get_prompt_repository)
+) -> Dict[str, Any]:
+    """Perform bulk operations on prompts."""
+    # Validate operation
+    valid_operations = ["approve", "reject", "delete"]
+    if operation not in valid_operations:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid operation. Must be one of: {', '.join(valid_operations)}"
+        )
+
+    # Validate and convert prompt IDs
+    prompt_uuids = []
+    for prompt_id in prompt_ids:
+        try:
+            prompt_uuids.append(uuid.UUID(prompt_id))
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid prompt ID format: {prompt_id}"
+            )
+
+    # Validate batch size
+    if len(prompt_uuids) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Batch size cannot exceed 100 prompts"
+        )
+
+    if len(prompt_uuids) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one prompt ID is required"
+        )
+
+    # Perform bulk operation
+    try:
+        result = await prompt_repo.bulk_operations(
+            prompt_uuids,
+            operation,
+            rejection_reason=rejection_reason,
+            create_mochi_card=create_mochi_card
+        )
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bulk operation failed: {str(e)}"
+        )
 
 
 # Utility endpoints

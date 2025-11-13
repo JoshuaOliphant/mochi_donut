@@ -16,12 +16,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import uvicorn
+from pathlib import Path
 
-from src.app.core.config import settings
-from src.app.core.database import db
-from src.app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.database import db
+from app.api.v1.router import api_router
+from app.web.routes import web_router
 
 
 # Configure logging
@@ -214,6 +218,9 @@ async def detailed_health_check() -> Dict[str, Any]:
 
 # API routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Web interface router (Jinja2 + HTMX)
+app.include_router(web_router, prefix="/web", tags=["web"])
 
 
 # Root endpoint

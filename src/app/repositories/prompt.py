@@ -12,7 +12,7 @@ from sqlalchemy import and_, func, or_, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
-from app.db.models import Prompt, PromptType, QualityMetric, QualityMetricType
+from app.db.models import Prompt, PromptType, PromptStatus, QualityMetric, QualityMetricType
 from app.repositories.base import BaseRepository
 
 
@@ -695,3 +695,137 @@ class PromptRepository(BaseRepository[Prompt, Any, Any]):
 
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def approve_prompt(
+        self,
+        id: uuid.UUID,
+        create_mochi_card: bool = False
+    ) -> Optional[Prompt]:
+        """
+        Approve a prompt and optionally trigger Mochi card creation.
+
+        Args:
+            id: Prompt UUID
+            create_mochi_card: Whether to create Mochi card automatically
+
+        Returns:
+            Updated prompt or None if not found
+        """
+        prompt = await self.get(id)
+        if not prompt:
+            return None
+
+        prompt.status = PromptStatus.APPROVED
+        await self.session.flush()
+        await self.session.refresh(prompt)
+
+        return prompt
+
+    async def reject_prompt(
+        self,
+        id: uuid.UUID,
+        rejection_reason: Optional[str] = None
+    ) -> Optional[Prompt]:
+        """
+        Reject a prompt with optional reason.
+
+        Args:
+            id: Prompt UUID
+            rejection_reason: Reason for rejection
+
+        Returns:
+            Updated prompt or None if not found
+        """
+        prompt = await self.get(id)
+        if not prompt:
+            return None
+
+        prompt.status = PromptStatus.REJECTED
+
+        if rejection_reason:
+            # Store rejection reason in metadata
+            if prompt.prompt_metadata is None:
+                prompt.prompt_metadata = {}
+            prompt.prompt_metadata["rejection_reason"] = rejection_reason
+            prompt.prompt_metadata["rejected_at"] = datetime.utcnow().isoformat()
+
+        await self.session.flush()
+        await self.session.refresh(prompt)
+
+        return prompt
+
+    async def bulk_operations(
+        self,
+        prompt_ids: List[uuid.UUID],
+        operation: str,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Perform bulk operations on multiple prompts.
+
+        Args:
+            prompt_ids: List of prompt UUIDs
+            operation: Operation to perform (approve, reject, delete)
+            **kwargs: Additional operation-specific parameters
+
+        Returns:
+            Dictionary with operation results
+        """
+        results = {
+            "total": len(prompt_ids),
+            "successful": 0,
+            "failed": 0,
+            "details": []
+        }
+
+        for prompt_id in prompt_ids:
+            try:
+                if operation == "approve":
+                    prompt = await self.approve_prompt(
+                        prompt_id,
+                        create_mochi_card=kwargs.get("create_mochi_card", False)
+                    )
+                elif operation == "reject":
+                    prompt = await self.reject_prompt(
+                        prompt_id,
+                        rejection_reason=kwargs.get("rejection_reason")
+                    )
+                elif operation == "delete":
+                    # Soft delete by setting status to rejected
+                    prompt = await self.reject_prompt(
+                        prompt_id,
+                        rejection_reason="Deleted via bulk operation"
+                    )
+                else:
+                    results["details"].append({
+                        "id": str(prompt_id),
+                        "status": "failed",
+                        "error": f"Unknown operation: {operation}"
+                    })
+                    results["failed"] += 1
+                    continue
+
+                if prompt:
+                    results["successful"] += 1
+                    results["details"].append({
+                        "id": str(prompt_id),
+                        "status": "success",
+                        "new_status": prompt.status.value
+                    })
+                else:
+                    results["failed"] += 1
+                    results["details"].append({
+                        "id": str(prompt_id),
+                        "status": "failed",
+                        "error": "Prompt not found"
+                    })
+
+            except Exception as e:
+                results["failed"] += 1
+                results["details"].append({
+                    "id": str(prompt_id),
+                    "status": "failed",
+                    "error": str(e)
+                })
+
+        return results

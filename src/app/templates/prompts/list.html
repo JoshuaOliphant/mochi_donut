@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Prompts - {{ workflow_id }} - Mochi Donut{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 dark:text-gray-100 sm:text-3xl sm:truncate">
+                Workflow: {{ workflow_id }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Review and approve generated flashcard prompts
+            </p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+            <button
+                hx-post="/prompts/{{ workflow_id }}/approve-all"
+                hx-trigger="click"
+                hx-confirm="Approve all prompts?"
+                hx-swap="none"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Approve All
+            </button>
+            <button
+                hx-post="/prompts/{{ workflow_id }}/reject-all"
+                hx-trigger="click"
+                hx-confirm="Reject all prompts?"
+                hx-swap="none"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Reject All
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+        <div class="flex flex-wrap gap-2">
+            <button
+                hx-get="/prompts/{{ workflow_id }}?status=all"
+                hx-target="#prompt-list"
+                hx-swap="innerHTML"
+                class="px-3 py-1 rounded-md text-sm font-medium {% if current_status == 'all' %}bg-indigo-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300{% endif %}">
+                All ({{ counts.total }})
+            </button>
+            <button
+                hx-get="/prompts/{{ workflow_id }}?status=pending"
+                hx-target="#prompt-list"
+                hx-swap="innerHTML"
+                class="px-3 py-1 rounded-md text-sm font-medium {% if current_status == 'pending' %}bg-indigo-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300{% endif %}">
+                Pending ({{ counts.pending }})
+            </button>
+            <button
+                hx-get="/prompts/{{ workflow_id }}?status=approved"
+                hx-target="#prompt-list"
+                hx-swap="innerHTML"
+                class="px-3 py-1 rounded-md text-sm font-medium {% if current_status == 'approved' %}bg-indigo-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300{% endif %}">
+                Approved ({{ counts.approved }})
+            </button>
+            <button
+                hx-get="/prompts/{{ workflow_id }}?status=rejected"
+                hx-target="#prompt-list"
+                hx-swap="innerHTML"
+                class="px-3 py-1 rounded-md text-sm font-medium {% if current_status == 'rejected' %}bg-indigo-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300{% endif %}">
+                Rejected ({{ counts.rejected }})
+            </button>
+        </div>
+    </div>
+
+    <!-- Prompt List -->
+    <div id="prompt-list" class="space-y-4">
+        {% if prompts %}
+            {% for prompt in prompts %}
+                {% include "components/prompt_card.html" %}
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No prompts</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">No prompts found for this filter.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
