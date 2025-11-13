@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine
 )
 from sqlalchemy.pool import NullPool, QueuePool
-from pydantic import BaseSettings, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class DatabaseSettings(BaseSettings):
@@ -43,14 +44,16 @@ class DatabaseSettings(BaseSettings):
     environment: str = "development"
     testing: bool = False
 
-    @validator("database_url")
+    @field_validator("database_url")
+    @classmethod
     def validate_database_url(cls, v: str) -> str:
         """Ensure database URL is properly formatted."""
         if not v:
             raise ValueError("Database URL cannot be empty")
         return v
 
-    @validator("pool_size")
+    @field_validator("pool_size")
+    @classmethod
     def validate_pool_size(cls, v: int) -> int:
         """Ensure pool size is reasonable."""
         if v < 1:
@@ -93,9 +96,10 @@ class DatabaseSettings(BaseSettings):
 
         return kwargs
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": False,
+    }
 
 
 # Global database settings instance
@@ -208,8 +212,9 @@ class DatabaseManager:
             True if database is accessible, False otherwise
         """
         try:
+            from sqlalchemy import text
             async with self.session_maker() as session:
-                result = await session.execute("SELECT 1")
+                result = await session.execute(text("SELECT 1"))
                 return result.scalar() == 1
         except Exception:
             return False

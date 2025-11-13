@@ -1,8 +1,12 @@
-# Database Models for Mochi Donut - SQLAlchemy 2.0 Async
+# ABOUTME: Database Models for Mochi Donut - SQLAlchemy 2.0 Async
+# ABOUTME: Production-ready models with Claude Agent SDK support, includes tracking for subagent invocations
 """
 Production-ready SQLAlchemy 2.0 models with async patterns for the Mochi Donut
 spaced repetition learning system. Follows FastAPI best practices and includes
 proper indexing for performance optimization.
+
+Updated for Claude Agent SDK migration to track subagent invocations and
+execution patterns specific to the Claude SDK architecture.
 """
 
 from datetime import datetime
@@ -62,13 +66,29 @@ class QualityMetricType(PyEnum):
     OVERALL_QUALITY = "overall_quality"
 
 
+class PromptStatus(PyEnum):
+    """Status of prompt in workflow (pending review, approved, rejected)."""
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    NEEDS_REVIEW = "needs_review"
+    SENT_TO_MOCHI = "sent_to_mochi"
+
+
 class AgentType(PyEnum):
-    """Types of AI agents in the system."""
+    """
+    Types of AI agents in the system (Claude SDK subagents).
+    Maps to Claude Code subagent types for tracking execution patterns.
+    """
     ORCHESTRATOR = "orchestrator"
     CONTENT_ANALYSIS = "content_analysis"
     PROMPT_GENERATION = "prompt_generation"
     QUALITY_REVIEW = "quality_review"
     REFINEMENT = "refinement"
+    # Claude SDK subagent types
+    PLANNER = "planner"
+    CODER = "coder"
+    INVESTIGATOR = "investigator"
 
 
 # Core Models
@@ -301,6 +321,9 @@ class AgentExecution(Base):
     """
     Tracks AI agent processing steps and performance for debugging and optimization.
     Records the complete execution chain for content processing.
+
+    Enhanced for Claude SDK: Tracks subagent invocations, parent-child relationships,
+    and Claude SDK-specific execution patterns.
     """
     __tablename__ = "agent_executions"
 
@@ -323,6 +346,11 @@ class AgentExecution(Base):
     execution_id: Mapped[str] = mapped_column(String(255), nullable=False)  # For grouping
     step_number: Mapped[int] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Claude SDK subagent tracking
+    parent_execution_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    subagent_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    is_subagent: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Model and performance
     model_used: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -362,6 +390,8 @@ class AgentExecution(Base):
         Index("ix_agent_execution_id", "execution_id"),
         Index("ix_agent_execution_status", "status"),
         Index("ix_agent_execution_started", "started_at"),
+        Index("ix_agent_execution_parent", "parent_execution_id"),
+        Index("ix_agent_execution_subagent", "is_subagent", "subagent_type"),
     )
 
 

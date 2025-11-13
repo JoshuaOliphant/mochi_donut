@@ -50,6 +50,10 @@ async def lifespan(app: FastAPI):
         else:
             logger.error("Database connection failed")
 
+        # TODO: Initialize Claude SDK agents here
+        # This will be implemented when we add the agent orchestration layer
+        logger.info("Claude SDK agents: pending implementation")
+
         logger.info("Application startup complete")
         yield
 
@@ -60,6 +64,10 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("Shutting down Mochi Donut application...")
+
+        # TODO: Cleanup Claude SDK resources here
+        # Ensure all agent sessions are properly closed
+
         await db.close()
         logger.info("Application shutdown complete")
 
@@ -187,7 +195,7 @@ async def health_check() -> Dict[str, Any]:
 
 @app.get("/health/detailed", tags=["Health"])
 async def detailed_health_check() -> Dict[str, Any]:
-    """Detailed health check including database connectivity."""
+    """Detailed health check including database and AI agent connectivity."""
     db_healthy = await db.health_check()
 
     return {
@@ -197,6 +205,7 @@ async def detailed_health_check() -> Dict[str, Any]:
         "environment": settings.ENVIRONMENT,
         "services": {
             "database": "healthy" if db_healthy else "unhealthy",
+            "claude_sdk": "not_implemented",  # TODO: Add Claude SDK health check
             "redis": "not_implemented",  # TODO: Add Redis health check
             "chroma": "not_implemented",  # TODO: Add Chroma health check
         }
