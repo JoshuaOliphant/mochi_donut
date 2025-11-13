@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mochi Donut{% endblock %} - Spaced Repetition Learning</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#fef7ee',
+                            100: '#fdedd3',
+                            200: '#fbd9a5',
+                            300: '#f8c06d',
+                            400: '#f59e33',
+                            500: '#f38311',
+                            600: '#e4670a',
+                            700: '#bd500b',
+                            800: '#973f10',
+                            900: '#7a3511',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+
+    <!-- Alpine.js for small interactions -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Custom CSS -->
+    <style>
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in;
+        }
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+        .htmx-request.htmx-indicator {
+            opacity: 1;
+        }
+
+        /* Quality score colors */
+        .quality-excellent { @apply bg-emerald-100 text-emerald-800 border-emerald-200; }
+        .quality-good { @apply bg-blue-100 text-blue-800 border-blue-200; }
+        .quality-fair { @apply bg-yellow-100 text-yellow-800 border-yellow-200; }
+        .quality-poor { @apply bg-red-100 text-red-800 border-red-200; }
+
+        /* Loading animations */
+        .pulse-gentle {
+            animation: pulse-gentle 2s infinite;
+        }
+
+        @keyframes pulse-gentle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900"
+      hx-headers='{"X-Requested-With": "XMLHttpRequest"}'
+      hx-boost="true">
+
+    <!-- Skip to main content -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary-600 text-white px-4 py-2 rounded-md">
+        Skip to main content
+    </a>
+
+    <!-- Navigation -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        {% block navigation %}
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <!-- Logo -->
+                    <a href="/" class="flex items-center space-x-2 text-xl font-bold text-primary-600 hover:text-primary-700 transition-colors">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        </svg>
+                        <span>Mochi Donut</span>
+                    </a>
+
+                    <!-- Main Navigation -->
+                    <div class="hidden md:flex items-center ml-8 space-x-1">
+                        <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+                            Home
+                        </a>
+                        <a href="/review" class="nav-link {% if request.url.path.startswith('/review') %}active{% endif %}">
+                            Review
+                        </a>
+                        <a href="/analytics" class="nav-link {% if request.url.path.startswith('/analytics') %}active{% endif %}">
+                            Analytics
+                        </a>
+                        <a href="/settings" class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}">
+                            Settings
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right side actions -->
+                <div class="flex items-center space-x-4">
+                    <!-- Theme toggle -->
+                    <button
+                        x-data="{ dark: localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches) }"
+                        x-init="$watch('dark', val => { document.documentElement.classList.toggle('dark', val); localStorage.setItem('theme', val ? 'dark' : 'light') })"
+                        @click="dark = !dark"
+                        class="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        aria-label="Toggle dark mode">
+                        <svg x-show="!dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                        <svg x-show="dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </button>
+
+                    <!-- Mobile menu button -->
+                    <button
+                        x-data="{ open: false }"
+                        @click="open = !open"
+                        class="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        aria-label="Toggle menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu -->
+        <div x-data="{ open: false }" x-show="open" class="md:hidden border-t border-gray-200 dark:border-gray-700">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="/" class="mobile-nav-link">Home</a>
+                <a href="/review" class="mobile-nav-link">Review</a>
+                <a href="/analytics" class="mobile-nav-link">Analytics</a>
+                <a href="/settings" class="mobile-nav-link">Settings</a>
+            </div>
+        </div>
+        {% endblock %}
+    </nav>
+
+    <!-- Flash messages -->
+    <div id="flash-messages" class="fixed top-20 right-4 z-50 space-y-2">
+        {% if messages %}
+            {% for message in messages %}
+                {% include 'components/alert.html' %}
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Main content -->
+    <main id="main-content" class="flex-1 min-h-screen">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        {% block footer %}
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    © 2025 Mochi Donut. Powered by spaced repetition learning.
+                </div>
+                <div class="flex space-x-4">
+                    <a href="/api/docs" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                        API Docs
+                    </a>
+                    <a href="https://github.com/JoshuaOliphant/mochi_donut" target="_blank" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </footer>
+
+    <!-- Global HTMX and Alpine scripts -->
+    <script>
+        // HTMX configuration
+        document.addEventListener('htmx:beforeSend', function(evt) {
+            // Add CSRF token if available
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (csrfToken) {
+                evt.detail.xhr.setRequestHeader('X-CSRF-Token', csrfToken.getAttribute('content'));
+            }
+        });
+
+        // Handle HTMX errors
+        document.addEventListener('htmx:responseError', function(evt) {
+            console.error('HTMX Error:', evt.detail);
+            // Show error message
+            showFlashMessage('An error occurred. Please try again.', 'error');
+        });
+
+        // Flash message helper
+        function showFlashMessage(message, type = 'info', duration = 5000) {
+            const flashContainer = document.getElementById('flash-messages');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `flash-message alert-${type} p-4 rounded-md shadow-md max-w-sm`;
+            alertDiv.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-xl">&times;</button>
+                </div>
+            `;
+
+            flashContainer.appendChild(alertDiv);
+
+            // Auto-remove after duration
+            setTimeout(() => {
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
+            }, duration);
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+
+    <style>
+        /* Navigation styles */
+        .nav-link {
+            @apply px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors;
+        }
+        .nav-link.active {
+            @apply bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-200;
+        }
+        .mobile-nav-link {
+            @apply block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700;
+        }
+
+        /* Alert styles */
+        .alert-success {
+            @apply bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:border-emerald-700 dark:text-emerald-200;
+        }
+        .alert-error {
+            @apply bg-red-50 border border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200;
+        }
+        .alert-warning {
+            @apply bg-yellow-50 border border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200;
+        }
+        .alert-info {
+            @apply bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200;
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,234 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: mochi_donut_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Cache uv dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/uv
+        key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-
+
+    - name: Install dependencies
+      run: uv sync --frozen
+
+    - name: Run database migrations
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/mochi_donut_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: testing
+      run: |
+        uv run python -m alembic upgrade head
+
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/mochi_donut_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: testing
+      run: |
+        uv run pytest tests/unit/ \
+          --cov=src \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          -v
+
+    - name: Run integration tests
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/mochi_donut_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: testing
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MOCHI_API_KEY: ${{ secrets.MOCHI_API_KEY }}
+      run: |
+        uv run pytest tests/integration/ \
+          --cov=src \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          -v
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Install dependencies
+      run: uv sync --frozen
+
+    - name: Run Ruff linting
+      run: |
+        uv run ruff check . --output-format=github
+
+    - name: Run Ruff formatting check
+      run: |
+        uv run ruff format --check .
+
+    - name: Run type checking with mypy
+      run: |
+        uv run mypy src/ --show-error-codes
+
+    - name: Run security scan with bandit
+      run: |
+        uv run bandit -r src/ -f json -o bandit-report.json || true
+        uv run bandit -r src/
+
+    - name: Upload bandit results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+  docker:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: mochi-donut:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image starts correctly
+      run: |
+        docker run --rm -d --name test-container -p 8080:8080 \
+          -e ENVIRONMENT=testing \
+          -e SECRET_KEY=test-secret \
+          -e DATABASE_URL=sqlite+aiosqlite:///./test.db \
+          mochi-donut:test
+
+        # Wait for container to start
+        sleep 30
+
+        # Test health endpoint
+        curl -f http://localhost:8080/health
+
+        # Clean up
+        docker stop test-container
+
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Install dependencies
+      run: uv sync --frozen
+
+    - name: Run performance tests
+      env:
+        DATABASE_URL: sqlite+aiosqlite:///./test_perf.db
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: testing
+      run: |
+        uv run pytest tests/performance/ -v --benchmark-only
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-results
+        path: .benchmarks/

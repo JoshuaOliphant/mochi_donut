@@ -1,0 +1,28 @@
+# FastAPI and ASGI server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Database
+SQLAlchemy[asyncio]>=2.0.0
+aiosqlite>=0.19.0
+alembic>=1.12.0
+
+# Validation and serialization
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# HTTP client
+httpx>=0.25.0
+
+# Background tasks (for future Celery integration)
+celery[redis]>=5.3.0
+redis>=5.0.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# Optional dependencies for production
+gunicorn>=21.2.0

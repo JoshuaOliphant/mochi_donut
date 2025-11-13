@@ -1,0 +1,48 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 8086,
+  "duration_api_ms": 11519,
+  "num_turns": 1,
+  "result": "4",
+  "session_id": "792ed20b-fe09-4b9e-a8ef-af4eca3f1cf2",
+  "total_cost_usd": 0.09105375,
+  "usage": {
+    "input_tokens": 3,
+    "cache_creation_input_tokens": 29314,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 5,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 29314
+    }
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 6,
+      "outputTokens": 232,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 39488,
+      "webSearchRequests": 0,
+      "costUSD": 0.050526,
+      "contextWindow": 200000
+    },
+    "claude-sonnet-4-5-20250929": {
+      "inputTokens": 3,
+      "outputTokens": 155,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 10185,
+      "webSearchRequests": 0,
+      "costUSD": 0.04052775,
+      "contextWindow": 200000
+    }
+  },
+  "permission_denials": [],
+  "uuid": "82294ce8-293f-4753-9e05-277d75d5016f"
+}

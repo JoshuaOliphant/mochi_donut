@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% from "components/progress_bar.html" import loading_spinner %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:text-3xl">
+            Settings
+        </h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Configure your Mochi Donut preferences and integrations
+        </p>
+    </div>
+
+    <!-- Settings sections -->
+    <div class="space-y-8">
+        <!-- API Configuration -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">API Configuration</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Configure external service integrations
+                </p>
+            </div>
+
+            <form hx-post="/web/settings/api"
+                  hx-target="#api-settings-status"
+                  hx-indicator="#api-save-spinner"
+                  class="px-6 py-4 space-y-6">
+
+                <!-- Mochi API Settings -->
+                <div>
+                    <h4 class="text-md font-medium text-gray-900 dark:text-white mb-4">Mochi Cards Integration</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="mochi_api_key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                API Key
+                            </label>
+                            <input type="password"
+                                   id="mochi_api_key"
+                                   name="mochi_api_key"
+                                   value="{{ settings.mochi_api_key if settings and settings.mochi_api_key else '' }}"
+                                   placeholder="Enter your Mochi API key"
+                                   class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label for="mochi_deck_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Default Deck ID
+                            </label>
+                            <input type="text"
+                                   id="mochi_deck_id"
+                                   name="mochi_deck_id"
+                                   value="{{ settings.mochi_deck_id if settings and settings.mochi_deck_id else '' }}"
+                                   placeholder="Deck ID for new cards"
+                                   class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="button"
+                                hx-post="/web/settings/test-mochi"
+                                hx-target="#mochi-test-result"
+                                hx-indicator="#mochi-test-spinner"
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <span id="mochi-test-spinner" class="htmx-indicator mr-2">
+                                {{ loading_spinner(size='small') }}
+                            </span>
+                            Test Connection
+                        </button>
+                        <div id="mochi-test-result" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- OpenAI API Settings -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h4 class="text-md font-medium text-gray-900 dark:text-white mb-4">OpenAI Configuration</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="openai_api_key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                API Key
+                            </label>
+                            <input type="password"
+                                   id="openai_api_key"
+                                   name="openai_api_key"
+                                   value="{{ settings.openai_api_key if settings and settings.openai_api_key else '' }}"
+                                   placeholder="Enter your OpenAI API key"
+                                   class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label for="openai_organization" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Organization ID (Optional)
+                            </label>
+                            <input type="text"
+                                   id="openai_organization"
+                                   name="openai_organization"
+                                   value="{{ settings.openai_organization if settings and settings.openai_organization else '' }}"
+                                   placeholder="org-xxxxxxxxxxxxxxxx"
+                                   class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JinaAI Settings -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h4 class="text-md font-medium text-gray-900 dark:text-white mb-4">JinaAI Reader</h4>
+
+                    <div>
+                        <label for="jina_api_key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            API Key (Optional)
+                        </label>
+                        <input type="password"
+                               id="jina_api_key"
+                               name="jina_api_key"
+                               value="{{ settings.jina_api_key if settings and settings.jina_api_key else '' }}"
+                               placeholder="Enter your JinaAI API key for higher limits"
+                               class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Optional: Provides higher rate limits and better performance
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Save button -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <div class="flex justify-between">
+                        <div id="api-settings-status"></div>
+                        <button type="submit"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <span id="api-save-spinner" class="htmx-indicator mr-2">
+                                {{ loading_spinner(size='small', color='white') }}
+                            </span>
+                            Save API Settings
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Processing Preferences -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Processing Preferences</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Configure how content is processed and prompts are generated
+                </p>
+            </div>
+
+            <form hx-post="/web/settings/processing"
+                  hx-target="#processing-settings-status"
+                  hx-indicator="#processing-save-spinner"
+                  class="px-6 py-4 space-y-6">
+
+                <!-- AI Model Preferences -->
+                <div>
+                    <h4 class="text-md font-medium text-gray-900 dark:text-white mb-4">AI Model Selection</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="content_analysis_model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Content Analysis
+                            </label>
+                            <select id="content_analysis_model"
+                                    name="content_analysis_model"
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                                <option value="gpt-5-nano" {% if settings and settings.content_analysis_model == 'gpt-5-nano' %}selected{% endif %}>GPT-5 Nano</option>
+                                <option value="gpt-5-mini" {% if settings and settings.content_analysis_model == 'gpt-5-mini' %}selected{% endif %}>GPT-5 Mini</option>
+                                <option value="gpt-4o-mini" {% if settings and settings.content_analysis_model == 'gpt-4o-mini' %}selected{% endif %}>GPT-4o Mini</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="prompt_generation_model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Prompt Generation
+                            </label>
+                            <select id="prompt_generation_model"
+                                    name="prompt_generation_model"
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                                <option value="gpt-5-mini" {% if settings and settings.prompt_generation_model == 'gpt-5-mini' %}selected{% endif %}>GPT-5 Mini</option>
+                                <option value="gpt-5-standard" {% if settings and settings.prompt_generation_model == 'gpt-5-standard' %}selected{% endif %}>GPT-5 Standard</option>
+                                <option value="gpt-4o" {% if settings and settings.prompt_generation_model == 'gpt-4o' %}selected{% endif %}>GPT-4o</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="quality_review_model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Quality Review
+                            </label>
+                            <select id="quality_review_model"
+                                    name="quality_review_model"
+                                    class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                                <option value="gpt-5-standard" {% if settings and settings.quality_review_model == 'gpt-5-standard' %}selected{% endif %}>GPT-5 Standard</option>
+                                <option value="gpt-5-mini" {% if settings and settings.quality_review_model == 'gpt-5-mini' %}selected{% endif %}>GPT-5 Mini</option>
+                                <option value="gpt-4o" {% if settings and settings.quality_review_model == 'gpt-4o' %}selected{% endif %}>GPT-4o</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quality Thresholds -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h4 class="text-md font-medium text-gray-900 dark:text-white mb-4">Quality Thresholds</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="minimum_quality_score" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Minimum Quality Score
+                            </label>
+                            <input type="range"
+                                   id="minimum_quality_score"
+                                   name="minimum_quality_score"
+                                   min="0.5"
+                                   max="0.9"
+                                   step="0.05"
+                                   value="{{ settings.minimum_quality_score if settings and settings.minimum_quality_score else 0.6 }}"
+                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                   oninput="document.getElementById('quality-score-display').textContent = Math.round(this.value * 100) + '%'">
+                            <div class="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                <span>50%</span>
+                                <span id="quality-score-display">{{ ((settings.minimum_quality_score if settings and settings.minimum_quality_score else 0.6) * 100) | round }}%</span>
+                                <span>90%</span>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Prompts below this score will be automatically flagged for review
+                            </p>
+                        </div>
+
+                        <div>
+                            <label for="auto_approve_threshold" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Auto-Approve Threshold
+                            </label>
+                            <input type="range"
+                                   id="auto_approve_threshold"
+                                   name="auto_approve_threshold"
+                                   min="0.7"
+                                   max="0.95"
+                                   step="0.05"
+                                   value="{{ settings.auto_approve_threshold if settings and settings.auto_approve_threshold else 0.85 }}"
+                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                   oninput="document.getElementById('auto-approve-display').textContent = Math.round(this.value * 100) + '%'">
+                            <div class="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                <span>70%</span>
+                                <span id="auto-approve-display">{{ ((settings.auto_approve_threshold if settings and settings.auto_approve_threshold else 0.85) * 100) | round }}%</span>
+                                <span>95%</span>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Prompts above this score will be automatically approved
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Options -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <h4 class="text-md font-medium text-gray-900 dark:text-white mb-4">Processing Options</h4>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input id="auto_create_mochi_cards"
+                                   name="auto_create_mochi_cards"
+                                   type="checkbox"
+                                   {% if settings and settings.auto_create_mochi_cards %}checked{% endif %}
+                                   class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded">
+                            <label for="auto_create_mochi_cards" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                                Automatically create Mochi cards for approved prompts
+                            </label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input id="enable_refinement"
+                                   name="enable_refinement"
+                                   type="checkbox"
+                                   {% if settings and settings.enable_refinement %}checked{% endif %}
+                                   class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded">
+                            <label for="enable_refinement" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                                Enable automatic prompt refinement for low-quality prompts
+                            </label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input id="parallel_processing"
+                                   name="parallel_processing"
+                                   type="checkbox"
+                                   {% if settings and settings.parallel_processing %}checked{% endif %}
+                                   class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 rounded">
+                            <label for="parallel_processing" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                                Enable parallel processing (faster but uses more resources)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save button -->
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <div class="flex justify-between">
+                        <div id="processing-settings-status"></div>
+                        <button type="submit"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <span id="processing-save-spinner" class="htmx-indicator mr-2">
+                                {{ loading_spinner(size='small', color='white') }}
+                            </span>
+                            Save Processing Settings
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- System Information -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">System Information</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    System status and version information
+                </p>
+            </div>
+
+            <div class="px-6 py-4">
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Application Version</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ system_info.version if system_info else '1.0.0' }}</dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Database Status</dt>
+                        <dd class="mt-1 text-sm">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                Connected
+                            </span>
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Redis Status</dt>
+                        <dd class="mt-1 text-sm">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if system_info and system_info.redis_connected %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% else %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200{% endif %}">
+                                {% if system_info and system_info.redis_connected %}Connected{% else %}Disconnected{% endif %}
+                            </span>
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Backup</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                            {{ system_info.last_backup.strftime('%Y-%m-%d %H:%M') if system_info and system_info.last_backup else 'Never' }}
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex space-x-3">
+                        <button hx-post="/web/settings/backup"
+                                hx-target="#backup-status"
+                                hx-indicator="#backup-spinner"
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <span id="backup-spinner" class="htmx-indicator mr-2">
+                                {{ loading_spinner(size='small') }}
+                            </span>
+                            Create Backup
+                        </button>
+
+                        <button hx-get="/web/settings/export"
+                                hx-target="_blank"
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            Export Data
+                        </button>
+                    </div>
+                    <div id="backup-status" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

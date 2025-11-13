@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% from "components/prompt_card.html" import prompt_card %}
+{% from "components/pagination.html" import pagination, infinite_scroll_pagination %}
+{% from "components/quality_score.html" import quality_score %}
+
+{% block title %}Review Prompts{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="md:flex md:items-center md:justify-between">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:text-3xl sm:truncate">
+                    Review Prompts
+                </h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Review and approve AI-generated flashcard prompts before creating Mochi cards
+                </p>
+            </div>
+            <div class="mt-4 flex md:mt-0 md:ml-4">
+                <!-- Bulk actions -->
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Bulk Actions
+                        <svg class="ml-2 -mr-0.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <div x-show="open"
+                         @click.away="open = false"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                        <div class="py-1">
+                            <button hx-post="/web/prompts/bulk/approve"
+                                    hx-include=".prompt-checkbox:checked"
+                                    hx-target="#prompt-list"
+                                    hx-confirm="Approve selected prompts?"
+                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left">
+                                Approve Selected
+                            </button>
+                            <button hx-post="/web/prompts/bulk/reject"
+                                    hx-include=".prompt-checkbox:checked"
+                                    hx-target="#prompt-list"
+                                    hx-confirm="Reject selected prompts?"
+                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left">
+                                Reject Selected
+                            </button>
+                            <button hx-post="/web/prompts/bulk/create-mochi"
+                                    hx-include=".prompt-checkbox:checked"
+                                    hx-target="#prompt-list"
+                                    hx-confirm="Create Mochi cards for selected prompts?"
+                                    class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full text-left">
+                                Create Mochi Cards
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and search -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+        <form hx-get="/web/review"
+              hx-target="#content-area"
+              hx-push-url="true"
+              hx-trigger="change, submit"
+              class="space-y-4">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Status filter -->
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Status
+                    </label>
+                    <select id="status"
+                            name="status"
+                            class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        <option value="">All Status</option>
+                        <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="approved" {% if filters.status == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if filters.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+
+                <!-- Quality filter -->
+                <div>
+                    <label for="quality" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Quality
+                    </label>
+                    <select id="quality"
+                            name="quality"
+                            class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        <option value="">All Quality</option>
+                        <option value="excellent" {% if filters.quality == 'excellent' %}selected{% endif %}>Excellent (80%+)</option>
+                        <option value="good" {% if filters.quality == 'good' %}selected{% endif %}>Good (70-79%)</option>
+                        <option value="fair" {% if filters.quality == 'fair' %}selected{% endif %}>Fair (60-69%)</option>
+                        <option value="poor" {% if filters.quality == 'poor' %}selected{% endif %}>Poor (<60%)</option>
+                    </select>
+                </div>
+
+                <!-- Content type filter -->
+                <div>
+                    <label for="content_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Content Type
+                    </label>
+                    <select id="content_type"
+                            name="content_type"
+                            class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        <option value="">All Types</option>
+                        <option value="article" {% if filters.content_type == 'article' %}selected{% endif %}>Article</option>
+                        <option value="pdf" {% if filters.content_type == 'pdf' %}selected{% endif %}>PDF</option>
+                        <option value="text" {% if filters.content_type == 'text' %}selected{% endif %}>Text</option>
+                    </select>
+                </div>
+
+                <!-- Sort order -->
+                <div>
+                    <label for="sort" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Sort By
+                    </label>
+                    <select id="sort"
+                            name="sort"
+                            class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        <option value="created_desc" {% if filters.sort == 'created_desc' %}selected{% endif %}>Newest First</option>
+                        <option value="created_asc" {% if filters.sort == 'created_asc' %}selected{% endif %}>Oldest First</option>
+                        <option value="quality_desc" {% if filters.sort == 'quality_desc' %}selected{% endif %}>Highest Quality</option>
+                        <option value="quality_asc" {% if filters.sort == 'quality_asc' %}selected{% endif %}>Lowest Quality</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div>
+                <label for="search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Search
+                </label>
+                <div class="relative">
+                    <input type="text"
+                           id="search"
+                           name="search"
+                           value="{{ filters.search if filters else '' }}"
+                           placeholder="Search prompts..."
+                           class="block w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Content area -->
+    <div id="content-area">
+        <!-- Summary stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total</dt>
+                                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ summary.total if summary else 0 }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Pending</dt>
+                                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ summary.pending if summary else 0 }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Approved</dt>
+                                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ summary.approved if summary else 0 }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            {{ quality_score(summary.avg_quality if summary and summary.avg_quality else 0.75, size='small') }}
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Avg Quality</dt>
+                                <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                                    {{ ((summary.avg_quality if summary and summary.avg_quality else 0.75) * 100) | round }}%
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prompt list -->
+        <div id="prompt-list">
+            {% if prompts %}
+            <!-- Select all checkbox -->
+            <div class="bg-white dark:bg-gray-800 rounded-t-lg border border-b-0 border-gray-200 dark:border-gray-700 px-6 py-3">
+                <label class="inline-flex items-center">
+                    <input type="checkbox"
+                           id="select-all"
+                           class="form-checkbox h-4 w-4 text-primary-600 transition duration-150 ease-in-out border-gray-300 dark:border-gray-600 rounded"
+                           onchange="toggleAllCheckboxes(this)">
+                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Select all</span>
+                </label>
+            </div>
+
+            <!-- Prompt cards -->
+            <div class="space-y-4">
+                {% for prompt in prompts %}
+                <div class="relative">
+                    <!-- Selection checkbox -->
+                    <div class="absolute top-4 left-4 z-10">
+                        <input type="checkbox"
+                               name="prompt_ids"
+                               value="{{ prompt.id }}"
+                               class="prompt-checkbox form-checkbox h-4 w-4 text-primary-600 transition duration-150 ease-in-out border-gray-300 dark:border-gray-600 rounded">
+                    </div>
+
+                    <!-- Prompt card with left margin for checkbox -->
+                    <div class="ml-8">
+                        {{ prompt_card(prompt, show_actions=true) }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            <div class="mt-8">
+                {{ pagination(page_obj, 'web.review') if page_obj else '' }}
+            </div>
+
+            {% else %}
+            <!-- Empty state -->
+            <div class="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">No prompts found</h3>
+                <p class="text-gray-500 dark:text-gray-400 mb-4">
+                    {% if filters and (filters.search or filters.status or filters.quality) %}
+                        Try adjusting your filters or search terms.
+                    {% else %}
+                        Process some content to generate prompts for review.
+                    {% endif %}
+                </p>
+                {% if not filters or not (filters.search or filters.status or filters.quality) %}
+                <a href="/"
+                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    Add Content
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleAllCheckboxes(selectAllCheckbox) {
+        const checkboxes = document.querySelectorAll('.prompt-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    }
+
+    // Update select all checkbox when individual checkboxes change
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('prompt-checkbox')) {
+            const selectAllCheckbox = document.getElementById('select-all');
+            const checkboxes = document.querySelectorAll('.prompt-checkbox');
+            const checkedCheckboxes = document.querySelectorAll('.prompt-checkbox:checked');
+
+            if (checkedCheckboxes.length === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCheckboxes.length === checkboxes.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    });
+</script>
+{% endblock %}

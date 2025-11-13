@@ -1,0 +1,173 @@
+# Fly.io configuration for Mochi Donut
+# Production-ready FastAPI application with multi-agent AI processing
+
+app = "mochi-donut"
+primary_region = "iad"  # US East (Ashburn, VA) - adjust based on your location
+kill_signal = "SIGINT"
+kill_timeout = "10s"
+
+[experimental]
+  auto_rollback = true
+
+[build]
+
+[deploy]
+  release_command = "uv run python -m alembic upgrade head"
+
+[env]
+  ENVIRONMENT = "production"
+  PYTHONPATH = "/app"
+  PYTHONUNBUFFERED = "1"
+  PORT = "8080"
+  LOG_LEVEL = "INFO"
+
+  # Database - Use Fly Postgres or SQLite with persistent volumes
+  DATABASE_URL = "sqlite+aiosqlite:///data/mochi_donut.db"
+
+  # Redis - Use Fly Redis or Upstash Redis
+  REDIS_URL = "redis://fly-mochi-donut-redis.internal:6379/0"
+  REDIS_RESULT_BACKEND = "redis://fly-mochi-donut-redis.internal:6379/1"
+
+  # Chroma - Use Chroma Cloud in production
+  CHROMA_HOST = "cloud.trychroma.com"
+  CHROMA_PORT = "443"
+
+  # Application settings
+  AI_CACHING_ENABLED = "true"
+  DEFAULT_AI_MODEL = "gpt-5-nano"
+  QUALITY_REVIEW_MODEL = "gpt-5-standard"
+  PROMPT_GENERATION_MODEL = "gpt-5-mini"
+
+  # CORS for production domain
+  CORS_ORIGINS = '["https://mochi-donut.fly.dev"]'
+
+  # Rate limiting
+  RATE_LIMIT_ENABLED = "true"
+  RATE_LIMIT_REQUESTS_PER_MINUTE = "100"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 100
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+    protocol = "http"
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "60s"
+    method = "GET"
+    timeout = "10s"
+    path = "/health/detailed"
+    protocol = "http"
+
+[[services]]
+  protocol = ""
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 100
+
+# Celery Worker for Content Processing
+[[services]]
+  protocol = ""
+  processes = ["celery-worker-content"]
+
+# Celery Worker for AI Processing
+[[services]]
+  protocol = ""
+  processes = ["celery-worker-ai"]
+
+# Celery Beat Scheduler
+[[services]]
+  protocol = ""
+  processes = ["celery-beat"]
+
+# Process definitions
+[[processes]]
+  name = "app"
+  entrypoint = ["uv", "run", "uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]
+
+[[processes]]
+  name = "celery-worker-content"
+  entrypoint = ["uv", "run", "celery", "-A", "src.app.tasks", "worker", "--loglevel=info", "--queues=content_processing", "--concurrency=2", "--max-tasks-per-child=100"]
+
+[[processes]]
+  name = "celery-worker-ai"
+  entrypoint = ["uv", "run", "celery", "-A", "src.app.tasks", "worker", "--loglevel=info", "--queues=ai_processing", "--concurrency=1", "--max-tasks-per-child=50"]
+
+[[processes]]
+  name = "celery-beat"
+  entrypoint = ["uv", "run", "celery", "-A", "src.app.tasks", "beat", "--loglevel=info", "--schedule=/data/celerybeat-schedule", "--pidfile=/tmp/celerybeat.pid"]
+
+# Persistent storage for SQLite database and Celery beat schedule
+[mounts]
+  source = "mochi_donut_data"
+  destination = "/data"
+  initial_size = "10gb"
+
+# Auto-scaling configuration
+[auto_stop_machines]
+  enabled = true
+  min_machines_running = 1
+
+[auto_start_machines]
+  enabled = true
+
+# Resource allocation
+[vm]
+  size = "shared-cpu-1x"  # Start small, scale up as needed
+  memory = "1gb"
+
+# Metrics configuration for monitoring
+[metrics]
+  port = 9091
+  path = "/metrics"
+
+# Secrets (set these via `fly secrets set`)
+# SECRET_KEY - Application secret key
+# OPENAI_API_KEY - OpenAI API key
+# MOCHI_API_KEY - Mochi API key
+# JINA_API_KEY - JinaAI API key (optional)
+# CHROMA_API_KEY - Chroma Cloud API key
+# DATABASE_URL - If using Fly Postgres instead of SQLite
+
+# Machine scaling rules
+[[vm.scaling]]
+  # Scale based on CPU usage
+  min_machines = 1
+  max_machines = 5
+  metric = "cpu"
+  target = 70
+
+[[vm.scaling]]
+  # Scale based on request rate
+  min_machines = 1
+  max_machines = 10
+  metric = "requests_per_second"
+  target = 50

@@ -14,5 +14,109 @@
     "permission_mode": "acceptEdits",
     "hook_event_name": "Stop",
     "stop_hook_active": false
+  },
+  {
+    "session_id": "b6f24378-99f4-47fb-949d-14cc66d82ce6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace/b6f24378-99f4-47fb-949d-14cc66d82ce6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "acceptEdits",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "b30ae7a3-2f7c-4c43-b50e-8ba58fb5a1c2",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/b30ae7a3-2f7c-4c43-b50e-8ba58fb5a1c2.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "b30ae7a3-2f7c-4c43-b50e-8ba58fb5a1c2",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/b30ae7a3-2f7c-4c43-b50e-8ba58fb5a1c2.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "4c91e6e0-edba-45f1-8bb0-4ebb0bf186e6",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/4c91e6e0-edba-45f1-8bb0-4ebb0bf186e6.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "b71cf187-df0a-4504-b8e3-79f8a71c96e9",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/b71cf187-df0a-4504-b8e3-79f8a71c96e9.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "792ed20b-fe09-4b9e-a8ef-af4eca3f1cf2",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/792ed20b-fe09-4b9e-a8ef-af4eca3f1cf2.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "4eae06d7-cd63-4981-af34-fb0c4ba5d895",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/4eae06d7-cd63-4981-af34-fb0c4ba5d895.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "acceptEdits",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "36ae26d6-c38c-4dd8-ba00-fbc77966bd3f",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/36ae26d6-c38c-4dd8-ba00-fbc77966bd3f.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "36ae26d6-c38c-4dd8-ba00-fbc77966bd3f",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/36ae26d6-c38c-4dd8-ba00-fbc77966bd3f.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "36ae26d6-c38c-4dd8-ba00-fbc77966bd3f",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/36ae26d6-c38c-4dd8-ba00-fbc77966bd3f.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "36ae26d6-c38c-4dd8-ba00-fbc77966bd3f",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/36ae26d6-c38c-4dd8-ba00-fbc77966bd3f.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "36ae26d6-c38c-4dd8-ba00-fbc77966bd3f",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/36ae26d6-c38c-4dd8-ba00-fbc77966bd3f.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "36ae26d6-c38c-4dd8-ba00-fbc77966bd3f",
+    "transcript_path": "/Users/joshuaoliphant/.claude/projects/-Users-joshuaoliphant-Library-CloudStorage-Dropbox-python-workspace-mochi-donut/36ae26d6-c38c-4dd8-ba00-fbc77966bd3f.jsonl",
+    "cwd": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
   }
 ]

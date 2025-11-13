@@ -83,5 +83,1376 @@
       "issues_found": [],
       "recommendations": []
     }
+  },
+  {
+    "timestamp": "2025-09-21T15:44:00.821173",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 1,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/enhanced_tool_use.json"
+        ],
+        "deleted": [],
+        "untracked": []
+      },
+      "file_types": {
+        "python": 0,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 1,
+        "tests": 0
+      },
+      "timestamp": "2025-09-21T15:44:00.815511"
+    },
+    "test_results": {
+      "tests_exist": false,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 0,
+      "issues_found": []
+    },
+    "security_results": {
+      "checks_performed": [],
+      "issues_found": [],
+      "recommendations": []
+    }
+  },
+  {
+    "timestamp": "2025-09-21T19:25:21.334591",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 3,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          "logs/session_start.json",
+          "todo.md"
+        ]
+      },
+      "file_types": {
+        "python": 0,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 2,
+        "tests": 0
+      },
+      "timestamp": "2025-09-21T19:25:21.331311"
+    },
+    "test_results": {
+      "tests_exist": false,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 0,
+      "issues_found": []
+    },
+    "security_results": {
+      "checks_performed": [],
+      "issues_found": [],
+      "recommendations": []
+    }
+  },
+  {
+    "timestamp": "2025-09-21T19:38:15.234439",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 4,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          "CLAUDE.md",
+          "logs/session_start.json",
+          "todo.md"
+        ]
+      },
+      "file_types": {
+        "python": 0,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 2,
+        "tests": 0
+      },
+      "timestamp": "2025-09-21T19:38:15.231110"
+    },
+    "test_results": {
+      "tests_exist": false,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 0,
+      "issues_found": []
+    },
+    "security_results": {
+      "checks_performed": [],
+      "issues_found": [],
+      "recommendations": []
+    }
+  },
+  {
+    "timestamp": "2025-09-22T21:16:06.388814",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 31,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-09-22T21:16:04.460492"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 1.370077133178711,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 76,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 8
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 2
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py",
+        "Analyzed jsonpointer.py",
+        "Analyzed _virtualenv.py",
+        "Analyzed mypy_extensions.py",
+        "Analyzed isympy.py",
+        "Analyzed six.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-02T05:14:38.839594",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 31,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-02T05:14:34.942223"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 1.144097089767456,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 76,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 8
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 2
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py",
+        "Analyzed jsonpointer.py",
+        "Analyzed _virtualenv.py",
+        "Analyzed mypy_extensions.py",
+        "Analyzed isympy.py",
+        "Analyzed six.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-11T20:11:54.776642",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 35,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-11T20:11:48.581881"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 1.365605115890503,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-11T20:24:23.750344",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 35,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-11T20:24:20.297455"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.6947457790374756,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-11T20:31:21.831830",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 35,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-11T20:31:16.979391"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.6629860401153564,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-11T20:39:59.346706",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 35,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-11T20:39:56.726889"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.6146590709686279,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-11T20:50:15.362596",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 37,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "comparison_summary.md",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "logs/session_start.json",
+          "plan_claude_sdk.md",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-11T20:50:06.086642"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.7935857772827148,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-12T20:42:39.931576",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 38,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".beads/",
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "AGENTS.md",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "history/",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-12T20:42:31.438174"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.8500032424926758,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-12T21:15:03.327345",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 38,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".beads/",
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".python-version",
+          "AGENTS.md",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "history/",
+          "logs/session_start.json",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 5,
+        "tests": 1
+      },
+      "timestamp": "2025-11-12T21:14:53.762027"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.7654447555541992,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 81,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed test_services.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py",
+        "Analyzed test_complete_workflow.py",
+        "Analyzed activate_this.py",
+        "Analyzed jsonpatch.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-13T06:46:11.953696",
+    "hook": "final_quality_gate",
+    "workflow_summary": {
+      "total_files_changed": 36,
+      "changes": {
+        "added": [],
+        "modified": [
+          "ogs/chat.json"
+        ],
+        "deleted": [],
+        "untracked": [
+          ".beads/",
+          ".claude/",
+          ".dockerignore",
+          ".env.sample",
+          ".github/",
+          ".gitignore",
+          "AGENTS.md",
+          "API_README.md",
+          "CELERY_README.md",
+          "CLAUDE.md",
+          "DEPLOYMENT.md",
+          "Dockerfile",
+          "Makefile",
+          "README.md",
+          "WEB_INTERFACE_README.md",
+          "adws/",
+          "agents/",
+          "alembic.ini",
+          "alembic/",
+          "docker-compose.yml",
+          "env.config.sample",
+          "env.production.sample",
+          "env.sample",
+          "fly.toml",
+          "pyproject.toml",
+          "pytest.ini",
+          "requirements.txt",
+          "run_app.py",
+          "scripts/",
+          "specs/",
+          "src/",
+          "test_app.py",
+          "tests/",
+          "todo.md",
+          "uv.lock"
+        ]
+      },
+      "file_types": {
+        "python": 2,
+        "templates": 0,
+        "migrations": 0,
+        "configs": 4,
+        "tests": 1
+      },
+      "timestamp": "2025-11-13T06:46:09.498908"
+    },
+    "test_results": {
+      "tests_exist": true,
+      "tests_passed": false,
+      "coverage": null,
+      "execution_time": 0.657912015914917,
+      "details": ""
+    },
+    "quality_results": {
+      "ruff_format_passed": false,
+      "ruff_check_passed": false,
+      "total_python_files": 87,
+      "issues_found": [
+        {
+          "type": "formatting",
+          "message": "Code formatting issues detected"
+        },
+        {
+          "type": "linting",
+          "code": "F401",
+          "count": 5
+        },
+        {
+          "type": "linting",
+          "code": "E722",
+          "count": 4
+        },
+        {
+          "type": "linting",
+          "code": "F841",
+          "count": 1
+        }
+      ]
+    },
+    "security_results": {
+      "checks_performed": [
+        "Analyzed run_app.py",
+        "Analyzed test_app.py",
+        "Analyzed adw_slash_command.py",
+        "Analyzed adw_prompt.py",
+        "Analyzed adw_chore_implement.py",
+        "Analyzed adw_plan_tdd.py",
+        "Analyzed agent.py",
+        "Analyzed conftest.py",
+        "Analyzed __init__.py",
+        "Analyzed test_services.py",
+        "Analyzed __init__.py",
+        "Analyzed test_repositories.py",
+        "Analyzed test_models.py",
+        "Analyzed test_schemas.py",
+        "Analyzed test_agents.py",
+        "Analyzed __init__.py",
+        "Analyzed test_content_workflow.py",
+        "Analyzed test_external_services.py",
+        "Analyzed test_api_endpoints.py",
+        "Analyzed test_load.py"
+      ],
+      "issues_found": [
+        {
+          "file": ".venv/lib/python3.11/site-packages/coverage/htmlfiles/index.html",
+          "issue": "Form without CSRF protection",
+          "severity": "medium"
+        }
+      ],
+      "recommendations": [
+        "Review all identified security issues and implement fixes"
+      ]
+    }
   }
 ]

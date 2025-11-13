@@ -1,0 +1,10 @@
+{
+  "adw_id": "6216880e",
+  "prompt": "What is 2 + 2? Just give me the number.",
+  "model": "haiku",
+  "working_dir": "/Users/joshuaoliphant/Library/CloudStorage/Dropbox/python_workspace/mochi_donut",
+  "success": true,
+  "session_id": "792ed20b-fe09-4b9e-a8ef-af4eca3f1cf2",
+  "retry_code": "none",
+  "output": "4"
+}

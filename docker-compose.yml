@@ -1,0 +1,227 @@
+version: '3.8'
+
+services:
+  # Redis - Message broker and result backend
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Chroma - Vector database (for development)
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # PostgreSQL - Main database (alternative to SQLite for production-like dev)
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=mochi_donut
+      - POSTGRES_USER=mochi_user
+      - POSTGRES_PASSWORD=dev_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mochi_user -d mochi_donut"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Celery Worker - Content Processing
+  celery-worker-content:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_RESULT_BACKEND=redis://redis:6379/1
+      - DATABASE_URL=postgresql://mochi_user:dev_password@postgres:5432/mochi_donut
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - ENVIRONMENT=development
+    command: >
+      sh -c "uv run python -m alembic upgrade head &&
+             uv run celery -A app.tasks worker
+             --loglevel=info
+             --queues=content_processing
+             --concurrency=2
+             --max-tasks-per-child=100"
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "uv", "run", "celery", "-A", "app.tasks", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker - AI Processing
+  celery-worker-ai:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_RESULT_BACKEND=redis://redis:6379/1
+      - DATABASE_URL=postgresql://mochi_user:dev_password@postgres:5432/mochi_donut
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - ENVIRONMENT=development
+      # AI API Keys (set in .env file)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    command: >
+      uv run celery -A app.tasks worker
+      --loglevel=info
+      --queues=ai_processing
+      --concurrency=1
+      --max-tasks-per-child=50
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # Celery Worker - External APIs & Maintenance
+  celery-worker-external:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_RESULT_BACKEND=redis://redis:6379/1
+      - DATABASE_URL=postgresql://mochi_user:dev_password@postgres:5432/mochi_donut
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - ENVIRONMENT=development
+      # External API Keys
+      - MOCHI_API_KEY=${MOCHI_API_KEY}
+      - JINA_API_KEY=${JINA_API_KEY}
+    command: >
+      uv run celery -A app.tasks worker
+      --loglevel=info
+      --queues=external_apis,maintenance
+      --concurrency=2
+      --max-tasks-per-child=200
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # Celery Beat - Task Scheduler
+  celery-beat:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_RESULT_BACKEND=redis://redis:6379/1
+      - DATABASE_URL=postgresql://mochi_user:dev_password@postgres:5432/mochi_donut
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - ENVIRONMENT=development
+    command: >
+      uv run celery -A app.tasks beat
+      --loglevel=info
+      --schedule=/tmp/celerybeat-schedule
+      --pidfile=/tmp/celerybeat.pid
+    volumes:
+      - .:/app
+      - celery_beat_data:/tmp
+    restart: unless-stopped
+
+  # Celery Flower - Task Monitoring Web UI
+  celery-flower:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+    command: >
+      uv run celery -A app.tasks flower
+      --port=5555
+      --broker-api=redis://redis:6379/0
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  # FastAPI Application - Main web server
+  app:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_RESULT_BACKEND=redis://redis:6379/1
+      - DATABASE_URL=postgresql://mochi_user:dev_password@postgres:5432/mochi_donut
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - ENVIRONMENT=development
+      - PORT=8080
+      # API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MOCHI_API_KEY=${MOCHI_API_KEY}
+      - JINA_API_KEY=${JINA_API_KEY}
+    command: >
+      sh -c "uv run python -m alembic upgrade head &&
+             uv run uvicorn app.main:app
+             --host 0.0.0.0
+             --port 8080
+             --reload
+             --log-level info"
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  redis_data:
+  chroma_data:
+  postgres_data:
+  celery_beat_data:

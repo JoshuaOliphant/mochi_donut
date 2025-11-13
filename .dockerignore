@@ -1,0 +1,98 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+.env.sample
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation and development files
+*.md
+docs/
+.git/
+.gitignore
+
+# Logs and temporary files
+logs/
+*.log
+tmp/
+.tmp
+
+# Database files (should be in volumes)
+*.db
+*.sqlite
+*.sqlite3
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Development tools
+.coverage
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+
+# Node modules (if any)
+node_modules/
+
+# Docker files (don't copy other Docker files)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Alembic (migrations should be included, but not state)
+alembic/versions/__pycache__/
+
+# uv cache
+.uv/
