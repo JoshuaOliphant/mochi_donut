@@ -1,327 +1,234 @@
-# Content Processor Service
+# ABOUTME: Content processing service using Claude Agent SDK for orchestrating multi-agent workflow.
+# ABOUTME: Replaces complex LangGraph orchestrator with simple SDK-based approach for flashcard generation.
 """
-Service layer for content processing orchestration.
-Manages the content ingestion, processing pipeline, and AI agent coordination.
+Content processing service using Claude Agent SDK.
+Orchestrates multi-agent workflow for flashcard generation.
 """
 
 import uuid
-import hashlib
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from datetime import datetime
 
-from fastapi import BackgroundTasks
-import httpx
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
-from app.repositories.content import ContentRepository
-from app.repositories.prompt import PromptRepository
-from app.schemas.content import (
-    ContentProcessingRequest,
-    ContentProcessingResponse,
-    ContentBatchProcessingRequest,
-    ContentBatchProcessingResponse,
-    ContentCreate
-)
-from app.db.models import SourceType, ProcessingStatus
-from app.core.config import settings
-from app.integrations.jina_client import JinaAIClient
-from app.integrations.chroma_client import ChromaClient
+from src.app.agents.subagents import get_subagent_definitions
+from src.app.mcp_tools import get_flat_tool_list
 
 
 class ContentProcessorService:
-    """Service for content processing and AI orchestration."""
+    """
+    Service for processing content into flashcards using Claude Agent SDK.
+
+    This replaces the complex LangGraph orchestrator with a simple SDK-based approach.
+    The service orchestrates specialized subagents to analyze content, generate prompts,
+    review quality, and refine low-quality prompts iteratively.
+    """
 
     def __init__(
         self,
-        content_repo: ContentRepository,
-        prompt_repo: PromptRepository,
-        jina_client: Optional[JinaAIClient] = None,
-        chroma_client: Optional[ChromaClient] = None
+        quality_threshold: float = 0.7,
+        max_iterations: int = 3
     ):
-        self.content_repo = content_repo
-        self.prompt_repo = prompt_repo
-        self.jina_client = jina_client or JinaAIClient()
-        self.chroma_client = chroma_client or ChromaClient()
+        """
+        Initialize the content processor service.
 
-    async def submit_for_processing(
+        Args:
+            quality_threshold: Minimum quality score (0.0-1.0) for prompts
+            max_iterations: Maximum refinement iterations for low-quality prompts
+        """
+        self.quality_threshold = quality_threshold
+        self.max_iterations = max_iterations
+
+        # Get all available MCP tools
+        all_tools = get_flat_tool_list()
+        tool_names = [tool.name for tool in all_tools]
+
+        # Add built-in Claude Code tools
+        allowed_tools = tool_names + ['Read', 'Grep', 'Glob']
+
+        # Configure Claude Agent SDK options
+        self.agent_options = ClaudeAgentOptions(
+            system_prompt=self._get_system_prompt(),
+            agents=get_subagent_definitions(),
+            # MCP servers are defined in the tools themselves via @tool decorator
+            # The SDK will automatically discover them
+            allowed_tools=allowed_tools,
+            permission_mode='bypassPermissions',  # For automated processing
+            cwd='.'
+        )
+
+    def _get_system_prompt(self) -> str:
+        """Get the main orchestrator system prompt."""
+        return f"""You are the orchestrator for a spaced repetition learning system.
+
+Your goal: Convert content into high-quality flashcards following Andy Matuschak's principles.
+
+Available subagents:
+- content-analyzer: Extracts key concepts and assesses complexity
+- prompt-generator: Creates diverse, high-quality prompts
+- quality-reviewer: Scores prompts against quality criteria
+- refinement-agent: Improves low-quality prompts
+
+Quality standards:
+- Quality threshold: {self.quality_threshold}
+- Maximum iterations: {self.max_iterations}
+- Target: 5-15 prompts per content piece
+
+Process workflow:
+1. Fetch content and convert to markdown (use fetch_markdown tool)
+2. Store in vector database (use store_content tool)
+3. Delegate to content-analyzer to extract concepts
+4. Delegate to prompt-generator to create prompts
+5. Delegate to quality-reviewer to score quality
+6. If quality below threshold and iterations remaining:
+   - Delegate to refinement-agent to improve prompts
+   - Return to step 5
+7. Save final prompts to database (use save_prompts tool)
+8. Return final results
+
+Be efficient, thorough, and maintain high quality standards.
+"""
+
+    async def process_url(
         self,
-        processing_request: ContentProcessingRequest,
-        background_tasks: BackgroundTasks
-    ) -> ContentProcessingResponse:
-        """Submit content for background processing."""
+        url: str,
+        auto_approve: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Process a URL into flashcards.
+
+        This method orchestrates the complete workflow from content fetching
+        through quality refinement, delegating to specialized subagents at each step.
+
+        Args:
+            url: URL to process
+            auto_approve: If True and quality met, auto-send to Mochi
+
+        Returns:
+            Dict with workflow results including:
+            - workflow_id: Unique workflow execution ID
+            - content_id: Unique content ID
+            - status: "completed" or "failed"
+            - url: The processed URL
+            - started_at: ISO timestamp when processing started
+            - completed_at: ISO timestamp when processing completed
+            - duration_seconds: Total processing time
+            - cost_usd: Estimated cost in USD
+            - messages: Last 5 messages from the workflow
+            - result: Final workflow result data
+        """
+        content_id = str(uuid.uuid4())
+        workflow_id = str(uuid.uuid4())
+        started_at = datetime.now()
+
+        # Create the workflow prompt
+        workflow_prompt = f"""
+Process this URL for spaced repetition learning: {url}
+
+Content ID: {content_id}
+Workflow ID: {workflow_id}
+Auto-approve to Mochi: {auto_approve}
+
+Execute the complete workflow:
+
+1. Fetch and convert URL to markdown using fetch_markdown tool
+2. Save to database using save_content tool with content_id
+3. Store in Chroma using store_content tool for semantic search
+4. Delegate to content-analyzer subagent to analyze the markdown and extract key concepts
+5. Delegate to prompt-generator subagent to create 5-15 prompts based on the concepts
+6. Delegate to quality-reviewer subagent to score each prompt
+7. Check overall quality:
+   - If average score >= {self.quality_threshold} AND all prompts >= {self.quality_threshold}:
+     → Proceed to step 8
+   - Else if iterations < {self.max_iterations}:
+     → Delegate to refinement-agent to improve low-scoring prompts
+     → Return to step 6 with refined prompts
+   - Else:
+     → Proceed with current prompts (max iterations reached)
+8. Save final prompts using save_prompts tool
+9. If auto_approve is True AND quality threshold met:
+   → Create cards in Mochi using create_card tool
+10. Return comprehensive results including:
+    - Number of prompts generated
+    - Average quality score
+    - Iterations performed
+    - Total cost in USD
+    - List of all final prompts with their quality scores
+
+Be thorough, maintain quality standards, and provide detailed results.
+"""
+
         try:
-            # Extract or fetch content
-            if processing_request.raw_content:
-                markdown_content = processing_request.raw_content
-                title = "Direct Content"
-            else:
-                # Fetch content from URL
-                markdown_content, title = await self._fetch_content_from_url(
-                    processing_request.source_url
-                )
+            # Execute workflow via Claude Agent SDK
+            async with ClaudeSDKClient(self.agent_options) as client:
+                await client.connect()
 
-            # Create content record
-            content_hash = self._generate_content_hash(markdown_content)
+                # Collect all messages
+                result_data = None
+                messages = []
 
-            # Check for duplicates
-            existing_content = await self.content_repo.get_by_hash(content_hash)
-            if existing_content:
-                return ContentProcessingResponse(
-                    content_id=existing_content.id,
-                    processing_status=existing_content.processing_status,
-                    message="Content already exists and is being processed",
-                    estimated_completion=existing_content.processed_at
-                )
+                async for message in client.query(workflow_prompt):
+                    messages.append(message)
 
-            # Create new content record
-            content_data = ContentCreate(
-                source_url=processing_request.source_url,
-                source_type=processing_request.source_type,
-                title=title,
-                markdown_content=markdown_content,
-                content_hash=content_hash,
-                word_count=len(markdown_content.split()),
-                estimated_reading_time=self._estimate_reading_time(markdown_content),
-                processing_config=processing_request.processing_config,
-                metadata={
-                    "submitted_at": datetime.utcnow().isoformat(),
-                    "priority": processing_request.priority
+                    if message.type == "result":
+                        result_data = message
+                        break
+
+                # Parse results
+                completed_at = datetime.now()
+                duration = (completed_at - started_at).total_seconds()
+
+                # Extract metrics from result
+                cost_usd = 0.0
+                if hasattr(result_data, 'usage') and result_data.usage:
+                    # Calculate cost based on token usage
+                    cost_usd = self._calculate_cost(result_data.usage)
+
+                return {
+                    "workflow_id": workflow_id,
+                    "content_id": content_id,
+                    "status": "completed",
+                    "url": url,
+                    "started_at": started_at.isoformat(),
+                    "completed_at": completed_at.isoformat(),
+                    "duration_seconds": duration,
+                    "cost_usd": cost_usd,
+                    "messages": [str(m) for m in messages[-5:]],  # Last 5 messages
+                    "result": result_data.result if result_data else None
                 }
-            )
-
-            content = await self.content_repo.create(content_data)
-
-            # Submit for background processing
-            background_tasks.add_task(
-                self._process_content_background,
-                content.id,
-                processing_request.processing_config or {}
-            )
-
-            # Estimate completion time (placeholder)
-            estimated_completion = datetime.utcnow()  # TODO: Implement actual estimation
-
-            return ContentProcessingResponse(
-                content_id=content.id,
-                processing_status=ProcessingStatus.PENDING,
-                message="Content submitted for processing",
-                estimated_completion=estimated_completion
-            )
 
         except Exception as e:
-            raise ValueError(f"Failed to submit content for processing: {str(e)}")
+            return {
+                "workflow_id": workflow_id,
+                "content_id": content_id,
+                "status": "failed",
+                "error": str(e),
+                "duration_seconds": (datetime.now() - started_at).total_seconds()
+            }
 
-    async def submit_batch_for_processing(
-        self,
-        batch_request: ContentBatchProcessingRequest,
-        background_tasks: BackgroundTasks
-    ) -> ContentBatchProcessingResponse:
-        """Submit multiple content items for batch processing."""
-        try:
-            batch_id = str(uuid.uuid4())
-            results = []
-            accepted_items = 0
-            rejected_items = 0
+    def _calculate_cost(self, usage: Dict[str, Any]) -> float:
+        """
+        Calculate approximate cost based on token usage.
 
-            for item in batch_request.items:
-                try:
-                    result = await self.submit_for_processing(item, background_tasks)
-                    results.append(result)
-                    accepted_items += 1
-                except Exception as e:
-                    results.append(ContentProcessingResponse(
-                        content_id=uuid.uuid4(),  # Placeholder
-                        processing_status=ProcessingStatus.FAILED,
-                        message=f"Failed to submit: {str(e)}"
-                    ))
-                    rejected_items += 1
+        Cost calculation uses weighted average pricing across model tiers:
+        - Haiku: $0.25/1M input, $1.25/1M output
+        - Sonnet: $3.00/1M input, $15.00/1M output
+        - Opus: $15.00/1M input, $75.00/1M output
 
-            return ContentBatchProcessingResponse(
-                batch_id=batch_id,
-                total_items=len(batch_request.items),
-                accepted_items=accepted_items,
-                rejected_items=rejected_items,
-                results=results
-            )
+        This is a simplified estimate using Sonnet pricing as the middle ground.
+        Actual costs depend on which models were used by subagents.
 
-        except Exception as e:
-            raise ValueError(f"Failed to submit batch for processing: {str(e)}")
+        Args:
+            usage: Dict with 'input_tokens' and 'output_tokens' keys
 
-    async def _fetch_content_from_url(self, url: str) -> tuple[str, str]:
-        """Fetch content from URL using JinaAI Reader API."""
-        if not url:
-            raise ValueError("URL is required")
+        Returns:
+            Estimated cost in USD
+        """
+        input_tokens = usage.get('input_tokens', 0)
+        output_tokens = usage.get('output_tokens', 0)
 
-        try:
-            # Use the JinaAI client for content extraction
-            result = await self.jina_client.extract_from_url(url, use_cache=True)
-            return result.content, result.title
+        # Assume average of Sonnet pricing (middle tier)
+        input_cost = (input_tokens / 1_000_000) * 3.0
+        output_cost = (output_tokens / 1_000_000) * 15.0
 
-        except Exception as e:
-            raise ValueError(f"Failed to fetch content from URL: {str(e)}")
-
-    def _generate_content_hash(self, content: str) -> str:
-        """Generate SHA-256 hash of content for deduplication."""
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
-
-    def _estimate_reading_time(self, content: str) -> int:
-        """Estimate reading time in minutes (assuming 200 WPM)."""
-        word_count = len(content.split())
-        return max(1, word_count // 200)
-
-    async def _process_content_background(
-        self,
-        content_id: uuid.UUID,
-        processing_config: Dict[str, Any]
-    ):
-        """Background task for content processing."""
-        try:
-            # Update status to processing
-            await self.content_repo.update(content_id, {
-                "processing_status": ProcessingStatus.PROCESSING
-            })
-
-            # TODO: Implement actual AI agent processing
-            # This is a placeholder for the multi-agent processing pipeline
-
-            # 1. Store content in vector database
-            await self._store_in_vector_db(content_id)
-
-            # 2. Extract key concepts (Content Analysis Agent)
-            concepts = await self._extract_concepts(content_id)
-
-            # 3. Generate prompts (Prompt Generation Agent)
-            prompts = await self._generate_prompts(content_id, concepts)
-
-            # 4. Quality review (Quality Review Agent)
-            await self._review_prompt_quality(content_id, prompts)
-
-            # 5. Update completion status
-            await self.content_repo.update(content_id, {
-                "processing_status": ProcessingStatus.COMPLETED,
-                "processed_at": datetime.utcnow(),
-                "metadata": {
-                    "concepts_extracted": len(concepts),
-                    "prompts_generated": len(prompts),
-                    "processing_completed_at": datetime.utcnow().isoformat()
-                }
-            })
-
-        except Exception as e:
-            # Update status to failed
-            await self.content_repo.update(content_id, {
-                "processing_status": ProcessingStatus.FAILED,
-                "metadata": {
-                    "error": str(e),
-                    "failed_at": datetime.utcnow().isoformat()
-                }
-            })
-            raise
-
-    async def _store_in_vector_db(self, content_id: uuid.UUID) -> str:
-        """Store content in vector database (Chroma)."""
-        try:
-            # Get content from database
-            content = await self.content_repo.get(content_id)
-            if not content:
-                raise ValueError(f"Content {content_id} not found")
-
-            collection_name = "content_embeddings"
-            document_id = str(content_id)
-
-            # Ensure collection exists
-            await self.chroma_client.get_or_create_collection(
-                collection_name=collection_name,
-                metadata={
-                    "description": "Mochi Donut content embeddings",
-                    "content_type": "markdown"
-                }
-            )
-
-            # Store document in Chroma with metadata
-            await self.chroma_client.add_document(
-                collection_name=collection_name,
-                document_id=document_id,
-                content=content.markdown_content,
-                metadata={
-                    "title": content.title,
-                    "source_url": content.source_url,
-                    "content_id": str(content_id),
-                    "word_count": content.word_count,
-                    "source_type": content.source_type.value if content.source_type else "unknown",
-                    "created_at": content.created_at.isoformat()
-                }
-            )
-
-            # Update content with Chroma information
-            await self.content_repo.update(content_id, {
-                "chroma_collection": collection_name,
-                "chroma_document_id": document_id
-            })
-
-            return document_id
-
-        except Exception as e:
-            raise ValueError(f"Failed to store content in vector database: {str(e)}")
-
-    async def _extract_concepts(self, content_id: uuid.UUID) -> List[str]:
-        """Extract key concepts using Content Analysis Agent."""
-        # TODO: Implement LangChain/LangGraph agent for concept extraction
-        # Placeholder implementation
-        content = await self.content_repo.get(content_id)
-        if not content:
-            raise ValueError("Content not found")
-
-        # Mock concept extraction
-        concepts = [
-            "concept_1", "concept_2", "concept_3"
-        ]
-
-        return concepts
-
-    async def _generate_prompts(
-        self,
-        content_id: uuid.UUID,
-        concepts: List[str]
-    ) -> List[str]:
-        """Generate prompts using Prompt Generation Agent."""
-        # TODO: Implement LangChain/LangGraph agent for prompt generation
-        # Placeholder implementation
-
-        # Mock prompt generation
-        prompts = [
-            f"prompt_for_{concept}" for concept in concepts
-        ]
-
-        return prompts
-
-    async def _review_prompt_quality(
-        self,
-        content_id: uuid.UUID,
-        prompts: List[str]
-    ):
-        """Review prompt quality using Quality Review Agent."""
-        # TODO: Implement LangChain/LangGraph agent for quality review
-        # Placeholder implementation
-        pass
-
-    async def get_processing_status(self, content_id: uuid.UUID) -> Dict[str, Any]:
-        """Get detailed processing status for content."""
-        content = await self.content_repo.get(content_id)
-        if not content:
-            raise ValueError("Content not found")
-
-        # Get associated agent executions
-        agent_executions = await self.content_repo.get_agent_executions(content_id)
-
-        # Get prompt count
-        prompt_count = await self.prompt_repo.count(content_id=content_id)
-
-        return {
-            "content_id": content_id,
-            "processing_status": content.processing_status,
-            "created_at": content.created_at,
-            "processed_at": content.processed_at,
-            "prompt_count": prompt_count,
-            "agent_executions": len(agent_executions),
-            "metadata": content.metadata
-        }
+        return input_cost + output_cost
