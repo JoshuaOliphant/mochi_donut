@@ -1,34 +1,25 @@
 # Multi-Agent AI Architecture for Mochi Donut
 """
-Multi-agent AI system for spaced repetition prompt generation using LangGraph and LangChain.
+Multi-agent AI system for spaced repetition prompt generation using Claude Agent SDK.
 
-This module implements an Orchestrator-Workers pattern with specialized agents:
-- OrchestratorAgent: Coordinates workflow between agents
-- ContentAnalyzerAgent: Extracts key concepts using GPT-5-nano
-- PromptGeneratorAgent: Creates prompts following Matuschak's principles using GPT-5-mini
-- QualityReviewerAgent: Evaluates prompt quality using GPT-5-standard
-- RefinementAgent: Iteratively improves prompts using GPT-5-mini
+This module implements a subagent-based pattern with specialized agents:
+- content-analyzer: Extracts key concepts (haiku)
+- prompt-generator: Creates prompts following Matuschak's principles (sonnet)
+- quality-reviewer: Evaluates prompt quality (opus)
+- refinement-agent: Iteratively improves prompts (sonnet)
+
+Note: Legacy LangGraph agents (base.py, orchestrator.py, etc.) are deprecated
+and will be removed in Phase 1 cleanup.
 """
 
-from .base import AgentBase, AgentState, AgentError, CostTracker
-from .content_analyzer import ContentAnalyzerAgent
-from .prompt_generator import PromptGeneratorAgent
-from .quality_reviewer import QualityReviewerAgent
-from .refinement_agent import RefinementAgent
-from .orchestrator import OrchestratorAgent
-from .workflow import PromptGenerationWorkflow
-from .service import AgentOrchestratorService
+from .subagents import (
+    get_subagent_definitions,
+    get_subagent_tool_mapping,
+    get_subagent_model_mapping
+)
 
 __all__ = [
-    "AgentBase",
-    "AgentState",
-    "AgentError",
-    "CostTracker",
-    "ContentAnalyzerAgent",
-    "PromptGeneratorAgent",
-    "QualityReviewerAgent",
-    "RefinementAgent",
-    "OrchestratorAgent",
-    "PromptGenerationWorkflow",
-    "AgentOrchestratorService",
+    "get_subagent_definitions",
+    "get_subagent_tool_mapping",
+    "get_subagent_model_mapping",
 ]
