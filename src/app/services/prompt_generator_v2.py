@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from datetime import datetime
 
+import httpx
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 

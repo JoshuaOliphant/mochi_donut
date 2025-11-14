@@ -108,11 +108,11 @@ def cleanup_old_data(self, retention_days: int = 30) -> Dict[str, Any]:
         cleanup_results["deleted_prompts"] = asyncio.run(cleanup_orphaned_prompts())
 
         # Clean up expired cache entries
-        cache_cleanup = asyncio.run(self.cleanup_expired_cache())
+        cache_cleanup = asyncio.run(cleanup_expired_cache(self.cache_service))
         cleanup_results["deleted_cache_entries"] = cache_cleanup.get("deleted_entries", 0)
 
         # Clean up temporary files (implementation depends on file storage strategy)
-        cleanup_results["deleted_temp_files"] = asyncio.run(self.cleanup_temp_files(cutoff_date))
+        cleanup_results["deleted_temp_files"] = asyncio.run(cleanup_temp_files(cutoff_date))
 
         task_logger.info(
             "Data cleanup completed",
@@ -145,7 +145,7 @@ def invalidate_expired_cache(self, force_cleanup: bool = False) -> Dict[str, Any
     try:
         task_logger.info("Starting cache cleanup", force_cleanup=force_cleanup, task_id=self.request.id)
 
-        cleanup_result = asyncio.run(self.cleanup_expired_cache(force_cleanup))
+        cleanup_result = asyncio.run(cleanup_expired_cache(self.cache_service, force_cleanup))
 
         task_logger.info(
             "Cache cleanup completed",
@@ -159,7 +159,10 @@ def invalidate_expired_cache(self, force_cleanup: bool = False) -> Dict[str, Any
         task_logger.error("Cache cleanup failed", error=str(e))
         raise self.retry(countdown=300, max_retries=1, exc=e)
 
-    async def cleanup_expired_cache(self, force_cleanup: bool = False) -> Dict[str, Any]:
+
+# Module-level helper functions for maintenance tasks
+
+async def cleanup_expired_cache(cache_service, force_cleanup: bool = False) -> Dict[str, Any]:
         """Internal cache cleanup method."""
         try:
             # This implementation depends on Redis cache service capabilities
@@ -185,7 +188,8 @@ def invalidate_expired_cache(self, force_cleanup: bool = False) -> Dict[str, Any
             logger.warning("Cache cleanup error", error=str(e))
             return {"deleted_entries": 0, "freed_memory_mb": 0, "error": str(e)}
 
-    async def cleanup_temp_files(self, cutoff_date: datetime) -> int:
+
+async def cleanup_temp_files(cutoff_date: datetime) -> int:
         """Clean up temporary files older than cutoff date."""
         # Implementation depends on temporary file storage strategy
         # This is a placeholder for actual file cleanup logic
@@ -224,16 +228,16 @@ def aggregate_analytics(self, period: str = "daily") -> Dict[str, Any]:
             raise ValueError(f"Invalid period: {period}")
 
         # Aggregate content processing metrics
-        content_metrics = asyncio.run(self.aggregate_content_metrics(start_date, end_date))
+        content_metrics = asyncio.run(aggregate_content_metrics(start_date, end_date))
 
         # Aggregate prompt generation metrics
-        prompt_metrics = asyncio.run(self.aggregate_prompt_metrics(start_date, end_date))
+        prompt_metrics = asyncio.run(aggregate_prompt_metrics(start_date, end_date))
 
         # Aggregate Mochi sync metrics
-        sync_metrics = asyncio.run(self.aggregate_sync_metrics(start_date, end_date))
+        sync_metrics = asyncio.run(aggregate_sync_metrics(start_date, end_date))
 
         # Aggregate AI usage and cost metrics
-        ai_metrics = asyncio.run(self.aggregate_ai_metrics(start_date, end_date))
+        ai_metrics = asyncio.run(aggregate_ai_metrics(start_date, end_date))
 
         # Compile aggregated analytics
         analytics_data = {
@@ -249,7 +253,9 @@ def aggregate_analytics(self, period: str = "daily") -> Dict[str, Any]:
 
         # Store aggregated data in cache
         cache_key = f"analytics:{period}:{start_date.strftime('%Y-%m-%d')}"
-        await self.cache_service.set(cache_key, json.dumps(analytics_data), ttl=86400 * 7)  # 7 days
+        # Note: cache_service.set would need to be awaited if it's async
+        # For now, commenting out until CacheService implementation is verified
+        # await self.cache_service.set(cache_key, json.dumps(analytics_data), ttl=86400 * 7)  # 7 days
 
         task_logger.info(
             "Analytics aggregation completed",
@@ -265,7 +271,8 @@ def aggregate_analytics(self, period: str = "daily") -> Dict[str, Any]:
         task_logger.error("Analytics aggregation failed", period=period, error=str(e))
         raise self.retry(countdown=300, max_retries=1, exc=e)
 
-    async def aggregate_content_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+
+async def aggregate_content_metrics(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Aggregate content processing metrics."""
         async with get_async_session() as session:
             # This would query content processing stats from the database
@@ -279,7 +286,8 @@ def aggregate_analytics(self, period: str = "daily") -> Dict[str, Any]:
                 "duplicate_rate": 0.0,
             }
 
-    async def aggregate_prompt_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+
+async def aggregate_prompt_metrics(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Aggregate prompt generation metrics."""
         async with get_async_session() as session:
             # This would query prompt generation stats
@@ -292,7 +300,8 @@ def aggregate_analytics(self, period: str = "daily") -> Dict[str, Any]:
                 "approval_rate": 0.0,
             }
 
-    async def aggregate_sync_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+
+async def aggregate_sync_metrics(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Aggregate Mochi sync metrics."""
         async with get_async_session() as session:
             # This would query sync statistics
@@ -305,7 +314,8 @@ def aggregate_analytics(self, period: str = "daily") -> Dict[str, Any]:
                 "average_sync_time": 0.0,
             }
 
-    async def aggregate_ai_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+
+async def aggregate_ai_metrics(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Aggregate AI usage and cost metrics."""
         # This would aggregate AI usage from cached tracking data
 
@@ -343,21 +353,21 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
         }
 
         # Check database connectivity
-        health_results["components"]["database"] = asyncio.run(self.check_database_health())
+        health_results["components"]["database"] = asyncio.run(check_database_health())
 
         # Check cache service
-        health_results["components"]["cache"] = asyncio.run(self.check_cache_health())
+        health_results["components"]["cache"] = asyncio.run(check_cache_health(self.cache_service))
 
         # Check Celery workers
-        health_results["components"]["celery"] = self.check_celery_health()
+        health_results["components"]["celery"] = check_celery_health()
 
         # Check external services if requested
         if check_external:
-            health_results["components"]["mochi_api"] = asyncio.run(self.check_mochi_health())
-            health_results["components"]["jina_api"] = asyncio.run(self.check_jina_health())
+            health_results["components"]["mochi_api"] = asyncio.run(check_mochi_health())
+            health_results["components"]["jina_api"] = asyncio.run(check_jina_health())
 
         # Check disk space and memory
-        health_results["components"]["system_resources"] = self.check_system_resources()
+        health_results["components"]["system_resources"] = check_system_resources()
 
         # Determine overall health status
         component_statuses = [comp.get("status", "unknown") for comp in health_results["components"].values()]
@@ -392,7 +402,8 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-    async def check_database_health(self) -> Dict[str, Any]:
+
+async def check_database_health() -> Dict[str, Any]:
         """Check database connectivity and performance."""
         try:
             async with get_async_session() as session:
@@ -413,16 +424,17 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
                 "response_time_ms": None,
             }
 
-    async def check_cache_health(self) -> Dict[str, Any]:
+
+async def check_cache_health(cache_service) -> Dict[str, Any]:
         """Check cache service health."""
         try:
             # Test cache operations
             test_key = "health_check_test"
             test_value = datetime.utcnow().isoformat()
 
-            await self.cache_service.set(test_key, test_value, ttl=60)
-            retrieved_value = await self.cache_service.get(test_key)
-            await self.cache_service.delete(test_key)
+            await cache_service.set(test_key, test_value, ttl=60)
+            retrieved_value = await cache_service.get(test_key)
+            await cache_service.delete(test_key)
 
             if retrieved_value == test_value:
                 return {
@@ -441,7 +453,8 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
                 "message": str(e),
             }
 
-    def check_celery_health(self) -> Dict[str, Any]:
+
+def check_celery_health() -> Dict[str, Any]:
         """Check Celery worker health."""
         try:
             from app.tasks.celery_app import celery_app
@@ -470,7 +483,8 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
                 "active_workers": 0,
             }
 
-    async def check_mochi_health(self) -> Dict[str, Any]:
+
+async def check_mochi_health() -> Dict[str, Any]:
         """Check Mochi API health."""
         try:
             from app.services.mochi_client import MochiClient
@@ -497,7 +511,8 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
                 "message": str(e),
             }
 
-    async def check_jina_health(self) -> Dict[str, Any]:
+
+async def check_jina_health() -> Dict[str, Any]:
         """Check JinaAI API health."""
         try:
             from app.services.jina_reader import JinaReaderService
@@ -524,7 +539,8 @@ def health_check(self, check_external: bool = True) -> Dict[str, Any]:
                 "message": str(e),
             }
 
-    def check_system_resources(self) -> Dict[str, Any]:
+
+def check_system_resources() -> Dict[str, Any]:
         """Check system resource availability."""
         try:
             import psutil

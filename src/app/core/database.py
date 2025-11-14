@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool, QueuePool
-from src.app.core.config import settings
+from app.core.config import settings
 
 
 class DatabaseConfig:
@@ -63,7 +63,7 @@ class DatabaseConfig:
         Initialize the database (create tables if they don't exist).
         This is primarily for development. Production should use migrations.
         """
-        from src.app.db.models import Base
+        from app.db.models import Base
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 

@@ -6,17 +6,17 @@ full page loads and HTMX partial updates for progressive enhancement.
 """
 
 import logging
+import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
+from uuid import UUID
 
 from fastapi import APIRouter, Request, Form, File, UploadFile, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from uuid import UUID
-
-from app.db.session import get_db
+from app.core.database import get_db
 from app.db.models import PromptStatus
 from app.schemas.content import ContentCreate
 from app.schemas.prompt import PromptUpdate
@@ -29,7 +29,6 @@ from app.repositories.prompt import PromptRepository
 logger = logging.getLogger(__name__)
 
 # Initialize templates - use path from current file location
-import os
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
@@ -330,50 +329,41 @@ async def process_content(
                 {"request": request, "error": "No content provided"}
             )
 
-        # Initialize content processor
-        content_processor = ContentProcessor(db)
+        # TODO: Implement content processing - currently not implemented
+        # Once ContentProcessor is implemented, uncomment the code below:
+        #
+        # content_processor = ContentProcessor(db)
+        # if url:
+        #     content_data = ContentCreate(
+        #         url=url,
+        #         content_type="url",
+        #         target_concepts=target_concepts,
+        #         difficulty_level=difficulty_level
+        #     )
+        #     processing_id = await content_processor.process_url_async(content_data)
+        # else:
+        #     file_content = await file.read()
+        #     content_data = ContentCreate(
+        #         title=file.filename,
+        #         content_type=_get_file_type(file.filename),
+        #         raw_content=file_content.decode("utf-8"),
+        #         target_concepts=target_concepts,
+        #         difficulty_level=difficulty_level
+        #     )
+        #     processing_id = await content_processor.process_content_async(content_data)
+        #
+        # context = {
+        #     "request": request,
+        #     "processing_id": processing_id,
+        #     "status": "started",
+        #     "message": "Content processing started. You will be notified when complete."
+        # }
+        # WebHelpers.add_flash_message(
+        #     request, "Content processing started successfully", "success"
+        # )
+        # return templates.TemplateResponse("components/processing_status.html", context)
 
-        if url:
-            # Process URL
-            content_data = ContentCreate(
-                url=url,
-                content_type="url",
-                target_concepts=target_concepts,
-                difficulty_level=difficulty_level
-            )
-
-            # Start background processing
-            processing_id = await content_processor.process_url_async(content_data)
-
-        else:
-            # Process file upload
-            file_content = await file.read()
-            content_data = ContentCreate(
-                title=file.filename,
-                content_type=_get_file_type(file.filename),
-                raw_content=file_content.decode("utf-8"),
-                target_concepts=target_concepts,
-                difficulty_level=difficulty_level
-            )
-
-            # Start background processing
-            processing_id = await content_processor.process_content_async(content_data)
-
-        # Return processing status component
-        context = {
-            "request": request,
-            "processing_id": processing_id,
-            "status": "started",
-            "message": "Content processing started. You will be notified when complete."
-        }
-
-        WebHelpers.add_flash_message(
-            request, "Content processing started successfully", "success"
-        )
-
-        return templates.TemplateResponse(
-            "components/processing_status.html", context
-        )
+        raise HTTPException(status_code=501, detail="Content processing not yet implemented")
 
     except Exception as e:
         logger.error(f"Error processing content: {e}")

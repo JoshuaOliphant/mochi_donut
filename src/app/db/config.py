@@ -6,7 +6,7 @@ and environment-specific settings for the Mochi Donut application.
 
 import os
 from functools import lru_cache
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -17,6 +17,11 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool, QueuePool
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+if TYPE_CHECKING:
+    from app.repositories.content import ContentRepository
+    from app.repositories.prompt import PromptRepository
+    from app.repositories.base import BaseRepository
 
 
 class DatabaseSettings(BaseSettings):

@@ -1,0 +1,48 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 31923,
+  "duration_api_ms": 42943,
+  "num_turns": 10,
+  "result": "## Wave 1 Test 1: Dependency Verification - **PASSED \u2705**\n\n### Test Results\n\n**1. pyproject.toml Check** \u2705\n- File exists and is properly configured\n- Project name: `mochi-donut`\n- Version: `0.1.0`\n- Python requirement: `>=3.11`\n- All 21 core dependencies specified with pinned versions\n\n**2. uv sync Installation** \u2705\n- Resolved 132 packages in 0.59ms\n- Audited 127 packages in 0.07ms\n- No conflicts or errors reported\n\n**3. Critical Packages Verified** \u2705\nAll required packages are installed:\n- \u2705 fastapi (0.117.1)\n- \u2705 sqlalchemy[asyncio] (2.0.43)\n- \u2705 alembic (1.16.5)\n- \u2705 pydantic (2.11.9)\n- \u2705 httpx (0.28.1)\n- \u2705 jinja2 (3.1.6)\n- \u2705 chromadb (1.1.0)\n- \u2705 claude-agent-sdk (0.1.6)\n\n**4. Dependency Conflict Check** \u2705\n- No version conflicts detected\n- All transitive dependencies resolved cleanly\n- 132 total packages installed (core + transitive deps)\n\n**5. Full Package Inventory** \u2705\nTotal of 88 top-level packages installed including:\n- Core: FastAPI, SQLAlchemy, Alembic, Pydantic\n- AI: claude-agent-sdk, MCP\n- Background tasks: Celery, Redis\n- Testing: pytest, pytest-asyncio, pytest-cov, pytest-mock\n- Integrations: chromadb, httpx\n- Web: Jinja2, Starlette, uvicorn\n- Utilities: python-dotenv, python-jose, python-multipart\n\n### Summary\nAll dependencies install successfully with zero conflicts. The project is ready for development with all required packages properly specified and available.",
+  "session_id": "a979762f-8eb8-4d3e-9861-d002fb159051",
+  "total_cost_usd": 0.13129675,
+  "usage": {
+    "input_tokens": 43,
+    "cache_creation_input_tokens": 33684,
+    "cache_read_input_tokens": 216425,
+    "output_tokens": 1815,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 33684
+    }
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 3619,
+      "outputTokens": 2329,
+      "cacheReadInputTokens": 216425,
+      "cacheCreationInputTokens": 43714,
+      "webSearchRequests": 0,
+      "costUSD": 0.09154899999999999,
+      "contextWindow": 200000
+    },
+    "claude-sonnet-4-5-20250929": {
+      "inputTokens": 3,
+      "outputTokens": 139,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 10041,
+      "webSearchRequests": 0,
+      "costUSD": 0.03974775,
+      "contextWindow": 200000
+    }
+  },
+  "permission_denials": [],
+  "uuid": "81fbe055-5ecd-46e6-a883-cb77ff8ab091"
+}

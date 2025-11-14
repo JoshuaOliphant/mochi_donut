@@ -1,7 +1,19 @@
-# Unit Tests for AI Agents - LangChain/LangGraph Components
+# Unit Tests for AI Agents - DEPRECATED
 """
-Comprehensive unit tests for AI agents testing LangChain integration,
-multi-agent orchestration, prompt processing, and LLM interactions.
+DEPRECATED: These tests are for legacy LangChain/LangGraph agents that have been removed.
+
+The system has migrated to Claude Agent SDK. For current agent tests, see:
+- tests/unit/test_claude_agents.py (New Claude SDK agent tests)
+- tests/integration/test_content_processor.py (ContentProcessorService integration tests)
+
+Legacy agents removed:
+- OrchestratorAgent (replaced by ContentProcessorService)
+- ContentAnalysisAgent (replaced by 'content-analyzer' subagent)
+- PromptGenerationAgent (replaced by 'prompt-generator' subagent)
+- QualityReviewAgent (replaced by 'quality-reviewer' subagent)
+- RefinementAgent (replaced by 'refinement-agent' subagent)
+
+This file is kept temporarily for reference but will be removed in Phase 1 cleanup.
 """
 
 import pytest
@@ -10,17 +22,23 @@ from typing import Dict, Any, List
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.agents.orchestrator import OrchestratorAgent
-from app.agents.content_analyzer import ContentAnalysisAgent
-from app.agents.prompt_generator import PromptGenerationAgent
-from app.agents.quality_reviewer import QualityReviewAgent
-from app.agents.refinement_agent import RefinementAgent
+# DEPRECATED: Legacy LangGraph agents removed
+# from app.agents.orchestrator import OrchestratorAgent
+# from app.agents.content_analyzer import ContentAnalysisAgent
+# from app.agents.prompt_generator import PromptGenerationAgent
+# from app.agents.quality_reviewer import QualityReviewAgent
+# from app.agents.refinement_agent import RefinementAgent
 from app.agents.service import AgentService
 from app.agents.config import AgentConfig
 from app.db.models import Content, Prompt, AgentExecution, AgentType, PromptType
 from app.integrations.openai_client import OpenAIClient
 from app.repositories.content import ContentRepository
 from app.repositories.prompt import PromptRepository
+
+# Mark all tests in this file as skip with deprecation message
+pytestmark = pytest.mark.skip(
+    reason="Legacy LangGraph agent tests deprecated. Use test_claude_agents.py for Claude SDK tests."
+)
 
 
 class TestOrchestratorAgent:

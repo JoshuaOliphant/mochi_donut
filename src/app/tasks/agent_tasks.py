@@ -1,10 +1,17 @@
 """
 AI agent tasks for the Mochi Donut system.
 
-Handles background AI processing including prompt generation,
-quality review, refinement, and cost tracking.
+DEPRECATED: This file contains legacy Celery tasks using old LangGraph agents.
+The system has migrated to Claude Agent SDK with ContentProcessorService.
+
+For new implementations, use:
+- src/app/services/content_processor.py (ContentProcessorService)
+- src/app/agents/subagents.py (Claude SDK subagent definitions)
+
+This file is kept temporarily for reference but will be removed in Phase 1 cleanup.
 """
 
+import warnings
 import asyncio
 import json
 from datetime import datetime, timedelta
@@ -14,11 +21,12 @@ import structlog
 
 from app.tasks.celery_app import celery_app, TaskConfig
 from app.services.cache import CacheService
-from app.agents.orchestrator import OrchestratorAgent
-from app.agents.content_analyzer import ContentAnalyzerAgent
-from app.agents.prompt_generator import PromptGeneratorAgent
-from app.agents.quality_reviewer import QualityReviewerAgent
-from app.agents.refinement_agent import RefinementAgent
+# DEPRECATED: Legacy LangGraph agents removed - use Claude SDK instead
+# from app.agents.orchestrator import OrchestratorAgent
+# from app.agents.content_analyzer import ContentAnalyzerAgent
+# from app.agents.prompt_generator import PromptGeneratorAgent
+# from app.agents.quality_reviewer import QualityReviewerAgent
+# from app.agents.refinement_agent import RefinementAgent
 from app.repositories.content import ContentRepository
 from app.repositories.prompt import PromptRepository
 from app.db.session import get_async_session
@@ -26,15 +34,27 @@ from app.schemas.prompt import PromptCreate, PromptUpdate
 
 logger = structlog.get_logger()
 
+warnings.warn(
+    "agent_tasks.py is deprecated. Use ContentProcessorService with Claude Agent SDK instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 
 class AIAgentTask:
-    """Base class for AI agent tasks with common utilities."""
+    """
+    Base class for AI agent tasks with common utilities.
+
+    DEPRECATED: This class used legacy LangGraph agents.
+    Use ContentProcessorService for new implementations.
+    """
 
     def __init__(self):
         self.cache_service = CacheService()
         self.content_repo = ContentRepository()
         self.prompt_repo = PromptRepository()
-        self.orchestrator = OrchestratorAgent()
+        # DEPRECATED: OrchestratorAgent removed - use ContentProcessorService
+        # self.orchestrator = OrchestratorAgent()
 
     async def track_ai_usage(self, model: str, input_tokens: int, output_tokens: int, operation: str):
         """Track AI model usage for cost monitoring."""
@@ -118,9 +138,14 @@ def generate_prompts(self, content_id: str, generation_options: Optional[Dict] =
                 task_logger.info("Returning cached prompts", content_id=content_id)
                 return json.loads(cached_result)
 
+        # DEPRECATED: Legacy agents removed
         # Initialize agents
-        content_analyzer = ContentAnalyzerAgent()
-        prompt_generator = PromptGeneratorAgent()
+        # content_analyzer = ContentAnalyzerAgent()
+        # prompt_generator = PromptGeneratorAgent()
+        raise NotImplementedError(
+            "Legacy generate_prompts task deprecated. "
+            "Use ContentProcessorService.process_url() instead."
+        )
 
         # Step 1: Analyze content
         task_logger.info("Analyzing content structure", content_id=content_id)
@@ -279,8 +304,13 @@ def review_prompt_quality(self, prompt_ids: List[str], review_options: Optional[
         if not prompts:
             raise ValueError("No valid prompts found for review")
 
+        # DEPRECATED: Legacy quality reviewer removed
         # Initialize quality reviewer
-        quality_reviewer = QualityReviewerAgent()
+        # quality_reviewer = QualityReviewerAgent()
+        raise NotImplementedError(
+            "Legacy review_prompt_quality task deprecated. "
+            "Use ContentProcessorService with Claude SDK subagents instead."
+        )
 
         # Review each prompt
         review_results = []
@@ -413,9 +443,14 @@ def refine_prompts(self, prompt_ids: List[str], refinement_options: Optional[Dic
         if not prompts:
             raise ValueError("No prompts with quality feedback found for refinement")
 
+        # DEPRECATED: Legacy refinement agent removed
         # Initialize refinement agent
-        refinement_agent = RefinementAgent()
-        max_iterations = refinement_options.get("max_iterations", 2)
+        # refinement_agent = RefinementAgent()
+        # max_iterations = refinement_options.get("max_iterations", 2)
+        raise NotImplementedError(
+            "Legacy refine_prompts task deprecated. "
+            "Use ContentProcessorService with Claude SDK refinement subagent instead."
+        )
 
         refined_results = []
 

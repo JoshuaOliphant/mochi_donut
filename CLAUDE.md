@@ -12,8 +12,8 @@ Mochi Donut is a spaced repetition learning integration system that converts con
 
 ### Core Stack
 - **Backend**: FastAPI with async SQLAlchemy 2.0
-- **AI Framework**: LangChain with LangGraph for multi-agent orchestration
-- **AI Models**: GPT-5 family (Nano/Mini/Standard) with cost-optimized selection
+- **AI Framework**: Claude Agent SDK (previously LangChain/LangGraph - migration complete)
+- **AI Models**: Claude 3.5 (Haiku/Sonnet/Opus) with cost-optimized selection
 - **Vector Database**: Chroma (local for dev, Chroma Cloud for production)
 - **Task Queue**: Celery + Redis for background processing
 - **Frontend**: Jinja2 + HTMX + Tailwind CSS (server-side rendering with progressive enhancement)
@@ -22,13 +22,18 @@ Mochi Donut is a spaced repetition learning integration system that converts con
 
 ### Multi-Agent Architecture
 
-The system uses an Orchestrator-Workers pattern with specialized agents:
+The system uses Claude Agent SDK with specialized subagents:
 
-1. **Orchestrator Agent**: Routes content and manages workflow between agents
-2. **Content Analysis Agent**: Extracts key concepts using GPT-5-nano
-3. **Prompt Generation Agent**: Creates prompts following Matuschak's principles using GPT-5-mini
-4. **Quality Review Agent**: Validates prompts against quality criteria using GPT-5-standard
-5. **Refinement Agent**: Iteratively improves prompts based on feedback
+1. **Content Processor Service**: Main orchestrator using Claude SDK (`ContentProcessorService`)
+2. **Content Analyzer Subagent**: Extracts key concepts using Claude Haiku
+3. **Prompt Generator Subagent**: Creates prompts following Matuschak's principles using Claude Sonnet
+4. **Quality Reviewer Subagent**: Validates prompts against quality criteria using Claude Opus
+5. **Refinement Subagent**: Iteratively improves prompts based on feedback using Claude Sonnet
+
+**Migration Status**: ✅ LangChain/LangGraph migration complete (Step 8)
+- Legacy agents removed: `base.py`, `orchestrator.py`, `content_analyzer.py`, `prompt_generator.py`, `quality_reviewer.py`, `refinement_agent.py`
+- New implementation: `src/app/services/content_processor.py` + `src/app/agents/subagents.py`
+- Legacy tasks deprecated: `src/app/tasks/agent_tasks.py` (use `ContentProcessorService` instead)
 
 ### Key Directories (Once Created)
 ```

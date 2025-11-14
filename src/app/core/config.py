@@ -12,8 +12,19 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Security
-    SECRET_KEY: str
+    SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+
+    def __init__(self, **kwargs):
+        """Initialize settings with validation."""
+        super().__init__(**kwargs)
+        if not self.SECRET_KEY:
+            raise ValueError(
+                "SECRET_KEY environment variable is required. "
+                "Please set it in your .env file. "
+                "See .env.sample for an example. "
+                "For development, you can generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./mochi_donut.db"
