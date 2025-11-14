@@ -11,6 +11,7 @@ from typing import Optional
 
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.dialects.postgresql import UUID
 from alembic import context
 
 # Import your models here to ensure they're registered with metadata
@@ -53,6 +54,24 @@ def get_database_url() -> str:
     return settings.database_url
 
 
+def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
+    """
+    Custom type comparison to handle SQLite UUID edge cases.
+
+    SQLite stores UUID as TEXT/BLOB/NUMERIC, so we need to suppress false
+    positives when comparing UUID types with SQLite's representation.
+    """
+    # Check if we're using SQLite
+    if context.dialect.name == "sqlite":
+        # Suppress UUID vs NUMERIC/TEXT/BLOB comparisons
+        from sqlalchemy import NUMERIC, TEXT
+        if isinstance(metadata_type, UUID) and isinstance(inspected_type, (NUMERIC, TEXT)):
+            return False
+
+    # Default comparison
+    return None  # None means use default comparison
+
+
 def run_migrations_offline() -> None:
     """
     Run migrations in 'offline' mode.
@@ -78,7 +97,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        compare_type=True,
+        compare_type=compare_type,
         compare_server_default=True,
         render_as_batch=True,  # For SQLite compatibility
     )
@@ -97,7 +116,7 @@ def do_run_migrations(connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        compare_type=True,
+        compare_type=compare_type,
         compare_server_default=True,
         render_as_batch=True,  # For SQLite compatibility
     )
