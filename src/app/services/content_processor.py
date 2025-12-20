@@ -11,8 +11,8 @@ from datetime import datetime
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
-from src.app.agents.subagents import get_subagent_definitions
-from src.app.mcp_tools import get_flat_tool_list
+from app.agents.subagents import get_subagent_definitions
+from app.mcp_tools import get_flat_tool_list
 
 
 class ContentProcessorService:

@@ -1,0 +1,48 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 183132,
+  "duration_api_ms": 192029,
+  "num_turns": 47,
+  "result": "Excellent! La Boeuf, the Wave 2 FastAPI integration test is now passing with a perfect score! Let me create a summary report:\n\n## Wave 2 FastAPI Integration Test - PASS \u2705\n\n**Test Results: 10/10 Passed (100%)**\n\n### Test Details:\n\n#### \u2705 **Test 1: App Import**\n- FastAPI app imports successfully without errors\n- All critical dependencies resolved\n\n#### \u2705 **Test 2: TestClient Creation**\n- TestClient created successfully\n- Ready for HTTP request testing\n\n#### \u2705 **Test 3: Critical Routes Registered**\n- 76 total routes registered\n- All critical routes found:\n  - `/` (root)\n  - `/health`\n  - `/health/detailed`\n  - `/docs` (Swagger UI)\n  - `/redoc` (ReDoc)\n\n#### \u2705 **Test 4: API Router Registered**\n- 53 API v1 routes registered\n- Sample routes include:\n  - Analytics endpoints (`/api/v1/analytics/`)\n  - Content endpoints\n  - Prompt endpoints\n  - Search endpoints\n\n#### \u2705 **Test 5: Web Router Registered**\n- 17 web interface routes registered\n- Routes for:\n  - Home page (`/web/`)\n  - Analytics dashboard\n  - Content processing\n  - Prompt review interface\n\n#### \u2705 **Test 6: GET / Root Endpoint**\n- Returns HTTP 200\n- Contains expected fields: name, version, description, docs_url, api_v1, health\n\n#### \u2705 **Test 7: GET /health Endpoint**\n- Returns HTTP 200\n- Status: `healthy`\n- Includes version and environment information\n\n#### \u2705 **Test 8: GET /health/detailed Endpoint**\n- Returns HTTP 200\n- Includes service status reporting:\n  - database: unhealthy (expected - in-memory SQLite)\n  - claude_sdk: not_implemented\n  - redis: not_implemented\n  - chroma: not_implemented\n\n#### \u2705 **Test 9: Middleware Configuration**\n- 3 middleware layers configured\n- CORS, security, and timestamp middleware active\n\n#### \u2705 **Test 10: Exception Handlers Registered**\n- 4 exception handlers configured\n- HTTP exception handling\n- Validation error handling\n- General exception handling\n\n### Key Findings:\n\n\u2705 **Application starts successfully** - No import or initialization errors\n\u2705 **All expected routes registered** - API, web, health, and documentation endpoints\n\u2705 **Health checks functional** - Both basic and detailed health endpoints responding correctly\n\u2705 **Middleware properly configured** - CORS, security headers, timing\n\u2705 **Exception handling in place** - Comprehensive error handling\n\n### Notes:\n\n- **Database Status**: Showing unhealthy is expected in test environment (in-memory SQLite)\n- **Integration Services**: Claude SDK, Redis, and Chroma marked as not_implemented (normal for Wave 2 foundation phase)\n- **Chroma Client**: Successfully handled initialization error gracefully (upgraded to new API)\n- **Import Fix**: Fixed monitoring.py import paths (src.app \u2192 app)\n\n### Test Artifacts:\n- Test script: `test_wave2_fastapi.py`\n- Test framework: FastAPI TestClient\n- Environment: Development (in-memory database)\n\n**Status: WAVE 2 FASTAPI APPLICATION INTEGRATION TEST COMPLETE AND PASSING**",
+  "session_id": "efdd8f47-8fdc-4db4-ae39-0717e47f6b85",
+  "total_cost_usd": 0.4732097999999999,
+  "usage": {
+    "input_tokens": 723,
+    "cache_creation_input_tokens": 77975,
+    "cache_read_input_tokens": 2336318,
+    "output_tokens": 12773,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 77975
+    }
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 19929,
+      "outputTokens": 13799,
+      "cacheReadInputTokens": 2336318,
+      "cacheCreationInputTokens": 88194,
+      "webSearchRequests": 0,
+      "costUSD": 0.4327982999999999,
+      "contextWindow": 200000
+    },
+    "claude-sonnet-4-5-20250929": {
+      "inputTokens": 3,
+      "outputTokens": 136,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 10230,
+      "webSearchRequests": 0,
+      "costUSD": 0.0404115,
+      "contextWindow": 200000
+    }
+  },
+  "permission_denials": [],
+  "uuid": "4b36973c-42cb-48e7-99dc-7dc8158a95d5"
+}

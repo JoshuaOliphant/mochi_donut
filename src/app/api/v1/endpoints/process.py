@@ -15,9 +15,9 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.api.dependencies import get_database_session
-from src.app.services.content_processor import ContentProcessorService
-from src.app.schemas.claude_workflow import (
+from app.api.dependencies import get_database_session
+from app.services.content_processor import ContentProcessorService
+from app.schemas.claude_workflow import (
     ContentProcessRequest,
     ContentProcessResponse,
     WorkflowStatusResponse,
@@ -25,7 +25,7 @@ from src.app.schemas.claude_workflow import (
     SubagentResult,
     PromptSummary
 )
-from src.app.db.models import Content, Prompt, ProcessingStatus, PromptStatus
+from app.db.models import Content, Prompt, ProcessingStatus, PromptStatus
 from sqlalchemy import select
 
 

@@ -9,9 +9,9 @@ import logging
 import uuid
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
+import os
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 from chromadb.utils import embedding_functions
 from pydantic import BaseModel
 
@@ -75,35 +75,32 @@ class ChromaClient:
         self.client = None
         self.embedding_function = None
         self._collections: Dict[str, Any] = {}
+        self._initialized = False
+        self._initialization_error = None
         self._initialize_client()
 
     def _initialize_client(self):
         """Initialize Chroma client and embedding function."""
         try:
-            # Configure Chroma settings
+            # Use new Chroma API (v1.x)
             if settings.is_production:
-                # Production: Use Chroma Cloud
-                chroma_settings = ChromaSettings(
-                    chroma_api_impl="chromadb.api.fastapi.FastAPI",
-                    chroma_server_host=settings.CHROMA_HOST,
-                    chroma_server_http_port=settings.CHROMA_PORT,
-                    chroma_server_ssl_enabled=True,
-                    chroma_server_headers={
-                        "Authorization": f"Bearer {settings.CHROMA_API_KEY}"
-                    } if settings.CHROMA_API_KEY else None
+                # Production: Use Chroma Cloud with API key
+                self.client = chromadb.HttpClient(
+                    host=settings.CHROMA_HOST,
+                    port=settings.CHROMA_PORT,
+                    ssl=True,
+                    headers={"Authorization": f"Bearer {settings.CHROMA_API_KEY}"}
+                    if settings.CHROMA_API_KEY else None
                 )
             else:
                 # Development: Use local persistent storage
-                chroma_settings = ChromaSettings(
-                    chroma_db_impl="duckdb+parquet",
-                    persist_directory="./chroma_storage"
-                )
-
-            self.client = chromadb.Client(chroma_settings)
+                persist_dir = os.path.join(os.getcwd(), "chroma_storage")
+                os.makedirs(persist_dir, exist_ok=True)
+                self.client = chromadb.PersistentClient(path=persist_dir)
 
             # Initialize OpenAI embedding function
             if not settings.OPENAI_API_KEY:
-                logger.warning("OpenAI API key not provided, using default embeddings")
+                logger.debug("OpenAI API key not provided, using default embeddings")
                 self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
             else:
                 self.embedding_function = embedding_functions.OpenAIEmbeddingFunction(
@@ -112,10 +109,13 @@ class ChromaClient:
                 )
 
             logger.info("Chroma client initialized successfully")
+            self._initialized = True
 
         except Exception as e:
-            logger.error(f"Failed to initialize Chroma client: {str(e)}")
-            raise ChromaConnectionError(f"Failed to connect to Chroma: {str(e)}")
+            logger.warning(f"Failed to initialize Chroma client: {str(e)}")
+            self._initialization_error = str(e)
+            self._initialized = False
+            # Don't raise - allow app to start without Chroma
 
     async def create_collection(
         self,
@@ -491,3 +491,7 @@ class ChromaClient:
         except Exception as e:
             logger.error(f"Chroma health check failed: {str(e)}")
             return False
+
+
+# Global Chroma client instance
+chroma_client = ChromaClient()

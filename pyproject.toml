@@ -28,10 +28,10 @@ dependencies = [
     # Integrations
     "chromadb>=1.1.0",
     "httpx>=0.28.1",
+    "aiohttp>=3.10.0",
 
-    # Background Tasks
-    "celery>=5.5.3",
-    "redis>=6.4.0",
+    # Background Tasks (APScheduler replaces Celery/Redis)
+    "apscheduler>=3.10.0",
 
     # Web Interface
     "jinja2>=3.1.6",
@@ -40,6 +40,8 @@ dependencies = [
     # Utilities
     "python-dotenv>=1.1.1",
     "python-jose[cryptography]>=3.5.0",
+    "structlog>=24.4.0",
+    "psutil>=6.1.0",
 
     # Testing
     "pytest>=8.4.2",
@@ -50,6 +52,14 @@ dependencies = [
 
 [project.scripts]
 mochi-donut = "mochi_donut:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 
 [build-system]
 requires = ["hatchling"]

@@ -28,7 +28,6 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./mochi_donut.db"
-    REDIS_URL: str = "redis://localhost:6379/0"
 
     # API Keys
     OPENAI_API_KEY: Optional[str] = None

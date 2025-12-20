@@ -81,10 +81,10 @@ bd close <issue-id> --reason "Completed"
 
 Currently implementing Phase 0: Foundation with Claude Agent SDK migration.
 
--  Step 1: Project initialization
-- ó Step 2: Database models
-- ó Step 3: FastAPI skeleton
-- ó Step 4: Pydantic schemas
+- Step 1: Project initialization
+- Step 2: Database models
+- Step 3: FastAPI skeleton
+- Step 4: Pydantic schemas
 
 See planning documents in `history/` for detailed implementation plans.
 

@@ -355,3 +355,5 @@ class JinaAIClient:
     async def close(self):
         """Close the HTTP client."""
         await self.client.aclose()
+# Global JinaAI client instance
+jina_client = JinaAIClient()

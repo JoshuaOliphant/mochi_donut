@@ -5,6 +5,7 @@ mock services, and test data factories for comprehensive TDD testing.
 """
 
 import asyncio
+import hashlib
 import os
 import uuid
 from datetime import datetime
@@ -36,7 +37,6 @@ class TestSettings(Settings):
     """Test-specific configuration settings."""
 
     DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
-    REDIS_URL: str = "redis://localhost:6379/1"
     ENVIRONMENT: str = "testing"
     SECRET_KEY: str = "test-secret-key-for-testing-only"
 
@@ -51,9 +51,9 @@ class TestSettings(Settings):
     JINA_CACHE_ENABLED: bool = False
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop():
-    """Create an instance of the default event loop for the test session."""
+    """Create an instance of the default event loop for each test function."""
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
     yield loop
@@ -66,47 +66,39 @@ def test_settings():
     return TestSettings()
 
 
-@pytest.fixture(scope="session")
-async def test_engine(test_settings):
-    """Create test database engine."""
+@pytest.fixture
+async def test_engine():
+    """Create a fresh test database engine for each test."""
     engine = create_async_engine(
-        test_settings.DATABASE_URL,
+        "sqlite+aiosqlite:///:memory:",
         echo=False,
         connect_args={"check_same_thread": False}
     )
+
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     yield engine
+
+    # Clean up
     await engine.dispose()
 
 
-@pytest.fixture(scope="session")
-async def setup_database(test_engine):
-    """Set up test database with tables."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-
 @pytest.fixture
-async def db_session(test_engine, setup_database) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Provide a clean database session for each test."""
     Session = async_sessionmaker(test_engine, expire_on_commit=False)
 
     async with Session() as session:
-        # Start a transaction
-        transaction = await session.begin()
-
-        try:
-            yield session
-        finally:
-            # Rollback the transaction to clean up
-            await transaction.rollback()
+        yield session
 
 
 @pytest.fixture
 async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
     """Provide an async HTTP client for FastAPI testing."""
+    from httpx import ASGITransport
+
     # Import here to avoid circular imports and missing dependencies
     try:
         from app.main import app
@@ -117,7 +109,8 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
         app.dependency_overrides[get_db] = override_get_db
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             yield client
 
         # Clean up
@@ -133,7 +126,8 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
         async def health():
             return {"status": "healthy"}
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             yield client
 
 
@@ -141,15 +135,19 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.fixture
 def sample_content_data():
-    """Sample content data for testing."""
+    """Sample content data for testing with unique hash per invocation."""
+    # Generate a unique hash for each test to avoid unique constraint violations
+    unique_id = str(uuid.uuid4())
+    content_hash = hashlib.sha256(unique_id.encode()).hexdigest()
+
     return {
-        "source_url": "https://example.com/article",
+        "source_url": f"https://example.com/article-{unique_id[:8]}",
         "source_type": SourceType.WEB,
         "title": "Test Article",
         "author": "Test Author",
         "markdown_content": "# Test Content\n\nThis is test content for TDD testing.",
         "raw_text": "Test Content This is test content for TDD testing.",
-        "content_hash": "a" * 64,  # 64-character hash
+        "content_hash": content_hash,
         "word_count": 10,
         "estimated_reading_time": 1,
         "processing_status": ProcessingStatus.PENDING,
@@ -274,21 +272,11 @@ def mock_chroma_client():
 
 
 @pytest.fixture
-def mock_redis_client():
-    """Mock Redis client for testing."""
-    mock_client = AsyncMock()
-    mock_client.get = AsyncMock()
-    mock_client.set = AsyncMock()
-    mock_client.delete = AsyncMock()
-    mock_client.exists = AsyncMock()
-    return mock_client
-
-
-@pytest.fixture
 def mock_jina_client():
     """Mock JinaAI client for testing."""
     mock_client = AsyncMock()
-    mock_client.get = AsyncMock()
+    mock_client.extract_from_url = AsyncMock()
+    mock_client.extract_from_pdf = AsyncMock()
     return mock_client
 
 
@@ -299,17 +287,16 @@ def mock_mochi_client():
     mock_client.create_card = AsyncMock()
     mock_client.get_decks = AsyncMock()
     mock_client.update_card = AsyncMock()
+    mock_client.create_cards_batch = AsyncMock()
     return mock_client
 
 
 @pytest.fixture
-def mock_celery_task():
-    """Mock Celery task for testing."""
-    mock_task = MagicMock()
-    mock_task.delay = MagicMock()
-    mock_task.apply_async = MagicMock()
-    mock_task.retry = MagicMock()
-    return mock_task
+def mock_background_tasks():
+    """Mock FastAPI BackgroundTasks for testing."""
+    mock_tasks = MagicMock()
+    mock_tasks.add_task = MagicMock()
+    return mock_tasks
 
 
 # Test Data Collections
@@ -456,8 +443,4 @@ def error_simulation_configs():
     }
 
 
-@pytest.fixture(autouse=True)
-async def cleanup_test_data(db_session):
-    """Auto-cleanup test data after each test."""
-    yield
-    # Cleanup is handled by transaction rollback in db_session fixture
+# Note: Cleanup is handled automatically by using fresh in-memory databases per test

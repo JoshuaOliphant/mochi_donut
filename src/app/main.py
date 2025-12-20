@@ -26,6 +26,7 @@ from app.core.config import settings
 from app.core.database import db
 from app.api.v1.router import api_router
 from app.web.routes import web_router
+from app.background.scheduler import init_scheduler, shutdown_scheduler, get_jobs
 
 
 # Configure logging
@@ -54,6 +55,12 @@ async def lifespan(app: FastAPI):
         else:
             logger.error("Database connection failed")
 
+        # Initialize background task scheduler (replaces Celery Beat)
+        scheduler = init_scheduler()
+        app.state.scheduler = scheduler
+        jobs = get_jobs()
+        logger.info(f"Background scheduler started with {len(jobs)} scheduled jobs")
+
         # TODO: Initialize Claude SDK agents here
         # This will be implemented when we add the agent orchestration layer
         logger.info("Claude SDK agents: pending implementation")
@@ -68,6 +75,10 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("Shutting down Mochi Donut application...")
+
+        # Shutdown background scheduler
+        shutdown_scheduler()
+        logger.info("Background scheduler stopped")
 
         # TODO: Cleanup Claude SDK resources here
         # Ensure all agent sessions are properly closed
@@ -202,6 +213,15 @@ async def detailed_health_check() -> Dict[str, Any]:
     """Detailed health check including database and AI agent connectivity."""
     db_healthy = await db.health_check()
 
+    # Check scheduler status
+    scheduler_status = "healthy"
+    scheduled_jobs = []
+    try:
+        jobs = get_jobs()
+        scheduled_jobs = [{"id": j["id"], "next_run": j["next_run_time"]} for j in jobs]
+    except Exception:
+        scheduler_status = "unhealthy"
+
     return {
         "status": "healthy" if db_healthy else "unhealthy",
         "timestamp": app.state.__dict__.get("timestamp"),
@@ -209,8 +229,9 @@ async def detailed_health_check() -> Dict[str, Any]:
         "environment": settings.ENVIRONMENT,
         "services": {
             "database": "healthy" if db_healthy else "unhealthy",
+            "scheduler": scheduler_status,
+            "scheduled_jobs": len(scheduled_jobs),
             "claude_sdk": "not_implemented",  # TODO: Add Claude SDK health check
-            "redis": "not_implemented",  # TODO: Add Redis health check
             "chroma": "not_implemented",  # TODO: Add Chroma health check
         }
     }

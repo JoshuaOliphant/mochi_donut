@@ -1,40 +1,29 @@
-"""
-FastAPI endpoints for Celery task management and monitoring.
+# ABOUTME: FastAPI endpoints for background task management and monitoring
+# ABOUTME: Uses native async/await with BackgroundTasks (replaces Celery)
 
-Provides REST API endpoints for triggering background tasks,
-monitoring progress, and retrieving task results.
-"""
-
+import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel, Field
 import structlog
 
-from app.tasks.content_tasks import (
-    process_url_content,
-    batch_process_content,
+from app.background.tasks import (
+    process_url,
+    batch_process,
     generate_embeddings,
-    detect_duplicates
-)
-from app.tasks.agent_tasks import (
+    detect_duplicates,
     generate_prompts,
-    review_prompt_quality,
+    review_quality,
     refine_prompts,
-    orchestrate_content_pipeline
-)
-from app.tasks.sync_tasks import (
-    create_mochi_card,
-    batch_sync_cards,
-    sync_deck_metadata
-)
-from app.tasks.maintenance_tasks import (
+    create_card,
+    batch_sync,
+    sync_decks,
     health_check,
     cleanup_old_data,
-    aggregate_analytics
+    aggregate_analytics,
 )
-from app.tasks.monitoring import task_monitor
-from app.tasks.task_utils import wait_for_task_completion
+from app.background.progress import get_progress_tracker
 
 logger = structlog.get_logger()
 
@@ -79,6 +68,7 @@ class ContentProcessingRequest(BaseModel):
 class PromptGenerationRequest(BaseModel):
     """Request model for prompt generation."""
     content_id: str
+    content_text: str
     generation_options: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -89,23 +79,40 @@ class MochiSyncRequest(BaseModel):
     card_options: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
+def generate_task_id() -> str:
+    """Generate a unique task ID."""
+    return str(uuid.uuid4())
+
+
 # Content Processing Endpoints
 @router.post("/content/process-url", response_model=TaskTriggerResponse)
-async def trigger_url_processing(request: ContentProcessingRequest):
+async def trigger_url_processing(
+    request: ContentProcessingRequest,
+    background_tasks: BackgroundTasks
+):
     """Trigger background processing of a URL."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        task = process_url_content.delay(
+        # Create progress entry
+        tracker.create(task_id, "process_url", metadata={"url": request.url})
+
+        # Add to background tasks
+        background_tasks.add_task(
+            process_url,
             url=request.url,
+            task_id=task_id,
             user_id=request.user_id,
             options=request.options
         )
 
-        logger.info("URL processing task triggered", task_id=task.id, url=request.url)
+        logger.info("URL processing task triggered", task_id=task_id, url=request.url)
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="process_url_content",
-            estimated_duration=120  # 2 minutes estimate
+            task_id=task_id,
+            task_name="process_url",
+            estimated_duration=120
         )
 
     except Exception as e:
@@ -114,54 +121,71 @@ async def trigger_url_processing(request: ContentProcessingRequest):
 
 
 @router.post("/content/batch-process", response_model=TaskTriggerResponse)
-async def trigger_batch_processing(request: BatchTaskRequest):
+async def trigger_batch_processing(
+    request: BatchTaskRequest,
+    background_tasks: BackgroundTasks
+):
     """Trigger batch processing of multiple URLs."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        if len(request.items) > 50:  # Limit batch size
+        if len(request.items) > 50:
             raise HTTPException(status_code=400, detail="Batch size cannot exceed 50 items")
 
-        task = batch_process_content.delay(
+        tracker.create(task_id, "batch_process", total=len(request.items))
+
+        background_tasks.add_task(
+            batch_process,
             urls=request.items,
+            task_id=task_id,
             batch_options={
                 **request.batch_options,
                 "processing_options": request.processing_options
             }
         )
 
-        logger.info(
-            "Batch processing task triggered",
-            task_id=task.id,
-            item_count=len(request.items)
-        )
+        logger.info("Batch processing task triggered", task_id=task_id, item_count=len(request.items))
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="batch_process_content",
-            estimated_duration=len(request.items) * 30  # 30 seconds per item estimate
+            task_id=task_id,
+            task_name="batch_process",
+            estimated_duration=len(request.items) * 30
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to trigger batch processing", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to trigger task: {str(e)}")
 
 
 @router.post("/content/generate-embeddings/{content_id}", response_model=TaskTriggerResponse)
-async def trigger_embedding_generation(content_id: str):
+async def trigger_embedding_generation(
+    content_id: str,
+    background_tasks: BackgroundTasks
+):
     """Trigger vector embedding generation for content."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        # This would typically get content from database first
-        task = generate_embeddings.delay(
+        tracker.create(task_id, "generate_embeddings", metadata={"content_id": content_id})
+
+        # In a real implementation, fetch content from database first
+        background_tasks.add_task(
+            generate_embeddings,
             content_id=content_id,
             markdown_content="",  # Would be fetched from database
             title=""
         )
 
-        logger.info("Embedding generation task triggered", task_id=task.id, content_id=content_id)
+        logger.info("Embedding generation task triggered", task_id=task_id, content_id=content_id)
 
         return TaskTriggerResponse(
-            task_id=task.id,
+            task_id=task_id,
             task_name="generate_embeddings",
-            estimated_duration=60  # 1 minute estimate
+            estimated_duration=60
         )
 
     except Exception as e:
@@ -171,24 +195,30 @@ async def trigger_embedding_generation(content_id: str):
 
 # AI Agent Endpoints
 @router.post("/ai/generate-prompts", response_model=TaskTriggerResponse)
-async def trigger_prompt_generation(request: PromptGenerationRequest):
+async def trigger_prompt_generation(
+    request: PromptGenerationRequest,
+    background_tasks: BackgroundTasks
+):
     """Trigger AI prompt generation for content."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        task = generate_prompts.delay(
+        tracker.create(task_id, "generate_prompts", metadata={"content_id": request.content_id})
+
+        background_tasks.add_task(
+            generate_prompts,
             content_id=request.content_id,
-            generation_options=request.generation_options
+            content_text=request.content_text,
+            model=request.generation_options.get("model", "sonnet")
         )
 
-        logger.info(
-            "Prompt generation task triggered",
-            task_id=task.id,
-            content_id=request.content_id
-        )
+        logger.info("Prompt generation task triggered", task_id=task_id, content_id=request.content_id)
 
         return TaskTriggerResponse(
-            task_id=task.id,
+            task_id=task_id,
             task_name="generate_prompts",
-            estimated_duration=180  # 3 minutes estimate
+            estimated_duration=180
         )
 
     except Exception as e:
@@ -198,29 +228,29 @@ async def trigger_prompt_generation(request: PromptGenerationRequest):
 
 @router.post("/ai/review-quality", response_model=TaskTriggerResponse)
 async def trigger_quality_review(
-    prompt_ids: List[str],
-    review_options: Optional[Dict[str, Any]] = None
+    prompt_id: str,
+    prompt_text: str,
+    background_tasks: BackgroundTasks
 ):
-    """Trigger quality review for generated prompts."""
+    """Trigger quality review for a generated prompt."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        if len(prompt_ids) > 20:  # Limit review batch size
-            raise HTTPException(status_code=400, detail="Cannot review more than 20 prompts at once")
+        tracker.create(task_id, "review_quality", metadata={"prompt_id": prompt_id})
 
-        task = review_prompt_quality.delay(
-            prompt_ids=prompt_ids,
-            review_options=review_options or {}
+        background_tasks.add_task(
+            review_quality,
+            prompt_id=prompt_id,
+            prompt_text=prompt_text
         )
 
-        logger.info(
-            "Quality review task triggered",
-            task_id=task.id,
-            prompt_count=len(prompt_ids)
-        )
+        logger.info("Quality review task triggered", task_id=task_id, prompt_id=prompt_id)
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="review_prompt_quality",
-            estimated_duration=len(prompt_ids) * 15  # 15 seconds per prompt estimate
+            task_id=task_id,
+            task_name="review_quality",
+            estimated_duration=30
         )
 
     except Exception as e:
@@ -228,32 +258,35 @@ async def trigger_quality_review(
         raise HTTPException(status_code=500, detail=f"Failed to trigger task: {str(e)}")
 
 
-@router.post("/ai/orchestrate-pipeline", response_model=TaskTriggerResponse)
-async def trigger_content_pipeline(
-    content_id: str,
-    pipeline_options: Optional[Dict[str, Any]] = None
+@router.post("/ai/refine-prompts", response_model=TaskTriggerResponse)
+async def trigger_prompt_refinement(
+    prompt_ids: List[str],
+    feedback: str,
+    background_tasks: BackgroundTasks
 ):
-    """Trigger the complete AI processing pipeline for content."""
+    """Trigger refinement of prompts based on feedback."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        task = orchestrate_content_pipeline.delay(
-            content_id=content_id,
-            pipeline_options=pipeline_options or {}
+        tracker.create(task_id, "refine_prompts", total=len(prompt_ids))
+
+        background_tasks.add_task(
+            refine_prompts,
+            prompt_ids=prompt_ids,
+            feedback=feedback
         )
 
-        logger.info(
-            "Content pipeline task triggered",
-            task_id=task.id,
-            content_id=content_id
-        )
+        logger.info("Prompt refinement task triggered", task_id=task_id, count=len(prompt_ids))
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="orchestrate_content_pipeline",
-            estimated_duration=600  # 10 minutes estimate
+            task_id=task_id,
+            task_name="refine_prompts",
+            estimated_duration=len(prompt_ids) * 20
         )
 
     except Exception as e:
-        logger.error("Failed to trigger content pipeline", error=str(e))
+        logger.error("Failed to trigger prompt refinement", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to trigger task: {str(e)}")
 
 
@@ -261,23 +294,30 @@ async def trigger_content_pipeline(
 @router.post("/mochi/create-card/{prompt_id}", response_model=TaskTriggerResponse)
 async def trigger_mochi_card_creation(
     prompt_id: str,
+    background_tasks: BackgroundTasks,
     deck_id: Optional[str] = None,
     card_options: Optional[Dict[str, Any]] = None
 ):
     """Trigger creation of a Mochi card from a prompt."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        task = create_mochi_card.delay(
+        tracker.create(task_id, "create_card", metadata={"prompt_id": prompt_id})
+
+        background_tasks.add_task(
+            create_card,
             prompt_id=prompt_id,
             deck_id=deck_id,
             card_options=card_options or {}
         )
 
-        logger.info("Mochi card creation task triggered", task_id=task.id, prompt_id=prompt_id)
+        logger.info("Mochi card creation task triggered", task_id=task_id, prompt_id=prompt_id)
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="create_mochi_card",
-            estimated_duration=30  # 30 seconds estimate
+            task_id=task_id,
+            task_name="create_card",
+            estimated_duration=30
         )
 
     except Exception as e:
@@ -286,50 +326,66 @@ async def trigger_mochi_card_creation(
 
 
 @router.post("/mochi/batch-sync", response_model=TaskTriggerResponse)
-async def trigger_mochi_batch_sync(request: MochiSyncRequest):
+async def trigger_mochi_batch_sync(
+    request: MochiSyncRequest,
+    background_tasks: BackgroundTasks
+):
     """Trigger batch synchronization to Mochi."""
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
+
     try:
-        if len(request.prompt_ids) > 30:  # Limit batch size
+        if len(request.prompt_ids) > 30:
             raise HTTPException(status_code=400, detail="Cannot sync more than 30 prompts at once")
 
-        task = batch_sync_cards.delay(
+        tracker.create(task_id, "batch_sync", total=len(request.prompt_ids))
+
+        background_tasks.add_task(
+            batch_sync,
             prompt_ids=request.prompt_ids,
+            task_id=task_id,
             batch_options={
                 "deck_id": request.deck_id,
                 "card_options": request.card_options,
-                "batch_size": 5,  # Conservative batch size for API limits
+                "batch_size": 5,
             }
         )
 
-        logger.info(
-            "Mochi batch sync task triggered",
-            task_id=task.id,
-            prompt_count=len(request.prompt_ids)
-        )
+        logger.info("Mochi batch sync task triggered", task_id=task_id, prompt_count=len(request.prompt_ids))
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="batch_sync_cards",
-            estimated_duration=len(request.prompt_ids) * 10  # 10 seconds per card estimate
+            task_id=task_id,
+            task_name="batch_sync",
+            estimated_duration=len(request.prompt_ids) * 10
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to trigger Mochi batch sync", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to trigger task: {str(e)}")
 
 
 @router.post("/mochi/sync-decks", response_model=TaskTriggerResponse)
-async def trigger_deck_sync(deck_id: Optional[str] = None):
+async def trigger_deck_sync(
+    background_tasks: BackgroundTasks,
+    deck_id: Optional[str] = None
+):
     """Trigger synchronization of deck metadata."""
-    try:
-        task = sync_deck_metadata.delay(deck_id=deck_id)
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
 
-        logger.info("Deck sync task triggered", task_id=task.id, deck_id=deck_id)
+    try:
+        tracker.create(task_id, "sync_decks")
+
+        background_tasks.add_task(sync_decks, deck_id=deck_id)
+
+        logger.info("Deck sync task triggered", task_id=task_id, deck_id=deck_id)
 
         return TaskTriggerResponse(
-            task_id=task.id,
-            task_name="sync_deck_metadata",
-            estimated_duration=60  # 1 minute estimate
+            task_id=task_id,
+            task_name="sync_decks",
+            estimated_duration=60
         )
 
     except Exception as e:
@@ -342,8 +398,8 @@ async def trigger_deck_sync(deck_id: Optional[str] = None):
 async def get_task_status(task_id: str):
     """Get the current status and progress of a task."""
     try:
-        # Get progress from monitoring system
-        progress = await task_monitor.get_task_progress(task_id)
+        tracker = get_progress_tracker()
+        progress = tracker.get_dict(task_id)
 
         if not progress:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -354,7 +410,7 @@ async def get_task_status(task_id: str):
             progress=progress,
             result=progress.get("result"),
             error=progress.get("error"),
-            created_at=progress.get("created_at"),
+            created_at=progress.get("started_at"),
             completed_at=progress.get("completed_at")
         )
 
@@ -365,66 +421,49 @@ async def get_task_status(task_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get task status: {str(e)}")
 
 
-@router.get("/batch-status/{batch_id}")
-async def get_batch_status(batch_id: str):
-    """Get the status of a batch operation."""
-    try:
-        batch_progress = await task_monitor.get_batch_progress(batch_id)
-
-        if not batch_progress:
-            raise HTTPException(status_code=404, detail="Batch not found")
-
-        return batch_progress
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to get batch status", batch_id=batch_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get batch status: {str(e)}")
-
-
 @router.get("/active")
 async def get_active_tasks(
     task_types: Optional[List[str]] = Query(None, description="Filter by task types")
 ):
     """Get information about currently active tasks."""
     try:
-        active_tasks = await task_monitor.get_active_tasks(task_types=task_types)
-        return active_tasks
+        tracker = get_progress_tracker()
+        active_tasks = tracker.list_active()
+
+        if task_types:
+            active_tasks = [t for t in active_tasks if t.task_type in task_types]
+
+        return {
+            "active_count": len(active_tasks),
+            "tasks": [t.to_dict() for t in active_tasks],
+        }
 
     except Exception as e:
         logger.error("Failed to get active tasks", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get active tasks: {str(e)}")
 
 
-@router.get("/metrics/{task_name}")
-async def get_task_metrics(
-    task_name: str,
-    hours: int = Query(24, description="Hours of metrics to retrieve")
-):
-    """Get performance metrics for a specific task type."""
-    try:
-        metrics = await task_monitor.get_task_metrics(task_name=task_name, hours=hours)
-        return metrics
-
-    except Exception as e:
-        logger.error("Failed to get task metrics", task_name=task_name, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get task metrics: {str(e)}")
-
-
 # Maintenance Endpoints
 @router.post("/maintenance/health-check", response_model=TaskTriggerResponse)
-async def trigger_health_check(check_external: bool = Query(True)):
+async def trigger_health_check_task(
+    background_tasks: BackgroundTasks,
+    check_external: bool = Query(True)
+):
     """Trigger a comprehensive system health check."""
-    try:
-        task = health_check.delay(check_external=check_external)
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
 
-        logger.info("Health check task triggered", task_id=task.id)
+    try:
+        tracker.create(task_id, "health_check")
+
+        background_tasks.add_task(health_check, check_external=check_external)
+
+        logger.info("Health check task triggered", task_id=task_id)
 
         return TaskTriggerResponse(
-            task_id=task.id,
+            task_id=task_id,
             task_name="health_check",
-            estimated_duration=30  # 30 seconds estimate
+            estimated_duration=30
         )
 
     except Exception as e:
@@ -433,17 +472,25 @@ async def trigger_health_check(check_external: bool = Query(True)):
 
 
 @router.post("/maintenance/cleanup", response_model=TaskTriggerResponse)
-async def trigger_data_cleanup(retention_days: int = Query(30, ge=1, le=365)):
+async def trigger_data_cleanup(
+    background_tasks: BackgroundTasks,
+    retention_days: int = Query(30, ge=1, le=365)
+):
     """Trigger cleanup of old data."""
-    try:
-        task = cleanup_old_data.delay(retention_days=retention_days)
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
 
-        logger.info("Data cleanup task triggered", task_id=task.id, retention_days=retention_days)
+    try:
+        tracker.create(task_id, "cleanup_old_data", metadata={"retention_days": retention_days})
+
+        background_tasks.add_task(cleanup_old_data, retention_days=retention_days)
+
+        logger.info("Data cleanup task triggered", task_id=task_id, retention_days=retention_days)
 
         return TaskTriggerResponse(
-            task_id=task.id,
+            task_id=task_id,
             task_name="cleanup_old_data",
-            estimated_duration=300  # 5 minutes estimate
+            estimated_duration=300
         )
 
     except Exception as e:
@@ -452,17 +499,25 @@ async def trigger_data_cleanup(retention_days: int = Query(30, ge=1, le=365)):
 
 
 @router.post("/maintenance/analytics", response_model=TaskTriggerResponse)
-async def trigger_analytics_aggregation(period: str = Query("daily", regex="^(daily|weekly|monthly)$")):
+async def trigger_analytics_aggregation(
+    background_tasks: BackgroundTasks,
+    period: str = Query("daily", pattern="^(daily|weekly|monthly)$")
+):
     """Trigger analytics data aggregation."""
-    try:
-        task = aggregate_analytics.delay(period=period)
+    task_id = generate_task_id()
+    tracker = get_progress_tracker()
 
-        logger.info("Analytics aggregation task triggered", task_id=task.id, period=period)
+    try:
+        tracker.create(task_id, "aggregate_analytics", metadata={"period": period})
+
+        background_tasks.add_task(aggregate_analytics, period=period)
+
+        logger.info("Analytics aggregation task triggered", task_id=task_id, period=period)
 
         return TaskTriggerResponse(
-            task_id=task.id,
+            task_id=task_id,
             task_name="aggregate_analytics",
-            estimated_duration=120  # 2 minutes estimate
+            estimated_duration=120
         )
 
     except Exception as e:
@@ -470,80 +525,22 @@ async def trigger_analytics_aggregation(period: str = Query("daily", regex="^(da
         raise HTTPException(status_code=500, detail=f"Failed to trigger task: {str(e)}")
 
 
-# Utility Endpoints
-@router.post("/wait/{task_id}")
-async def wait_for_task(
-    task_id: str,
-    timeout: int = Query(300, ge=5, le=1800, description="Timeout in seconds")
-):
-    """Wait for a task to complete (with timeout)."""
-    try:
-        result = await wait_for_task_completion(
-            task_id=task_id,
-            timeout_seconds=timeout
-        )
-
-        if not result.get("completed"):
-            raise HTTPException(status_code=408, detail="Task did not complete within timeout")
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Failed to wait for task", task_id=task_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to wait for task: {str(e)}")
-
-
-@router.delete("/cancel/{task_id}")
-async def cancel_task(task_id: str):
-    """Cancel a running task."""
-    try:
-        from app.tasks.celery_app import celery_app
-
-        # Revoke the task
-        celery_app.control.revoke(task_id, terminate=True)
-
-        logger.info("Task cancellation requested", task_id=task_id)
-
-        return {"task_id": task_id, "status": "REVOKED", "message": "Task cancellation requested"}
-
-    except Exception as e:
-        logger.error("Failed to cancel task", task_id=task_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to cancel task: {str(e)}")
-
-
 # Dashboard endpoint for task overview
 @router.get("/dashboard")
 async def get_task_dashboard():
     """Get comprehensive task dashboard information."""
     try:
-        # Get various task statistics
-        active_tasks = await task_monitor.get_active_tasks()
-
-        # Get recent metrics for key task types
-        key_tasks = [
-            "process_url_content",
-            "generate_prompts",
-            "create_mochi_card",
-            "batch_process_content"
-        ]
-
-        task_metrics = {}
-        for task_name in key_tasks:
-            try:
-                metrics = await task_monitor.get_task_metrics(task_name, hours=24)
-                task_metrics[task_name] = metrics
-            except Exception as e:
-                logger.warning("Failed to get metrics for task", task_name=task_name, error=str(e))
-                task_metrics[task_name] = {"error": str(e)}
+        tracker = get_progress_tracker()
+        active_tasks = tracker.list_active()
 
         dashboard_data = {
             "timestamp": datetime.utcnow().isoformat(),
-            "active_tasks": active_tasks,
-            "task_metrics": task_metrics,
+            "active_tasks": {
+                "count": len(active_tasks),
+                "tasks": [t.to_dict() for t in active_tasks],
+            },
             "system_health": {
-                "status": "healthy",  # Would be determined by health checks
+                "status": "healthy",
                 "last_check": datetime.utcnow().isoformat(),
             }
         }

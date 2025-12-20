@@ -1,25 +1,21 @@
-"""
-Monitoring and health check endpoints for Mochi Donut.
-
-Provides comprehensive health checks, metrics, and monitoring endpoints
-for production deployment with Prometheus integration and Logfire support.
-"""
+# ABOUTME: Monitoring and health check endpoints for Mochi Donut
+# ABOUTME: Provides health checks, metrics, and monitoring for production deployment
 
 import asyncio
-import json
 import time
 import psutil
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from src.app.core.config import settings
-from src.app.core.database import db
-from src.app.integrations.redis_client import redis_client
-from src.app.integrations.chroma_client import chroma_client
+from app.core.config import settings
+from app.core.database import db
+from app.integrations.chroma_client import chroma_client
+from app.background.scheduler import get_scheduler, get_jobs
+from app.background.progress import get_progress_tracker
 
 
 router = APIRouter(tags=["Monitoring"])
@@ -41,7 +37,7 @@ class MetricsResponse(BaseModel):
     system: Dict[str, Any]
     application: Dict[str, Any]
     database: Dict[str, Any]
-    redis: Dict[str, Any]
+    scheduler: Dict[str, Any]
     chroma: Dict[str, Any]
 
 
@@ -52,13 +48,11 @@ app_start_time = time.time()
 async def check_database_health() -> Dict[str, Any]:
     """Check database connectivity and basic metrics."""
     try:
-        # Basic connectivity test
         is_healthy = await db.health_check()
 
         if not is_healthy:
             return {"status": "unhealthy", "error": "Connection failed"}
 
-        # Get database statistics
         stats = {
             "status": "healthy",
             "connection_pool_size": getattr(db.engine.pool, "size", "unknown"),
@@ -66,10 +60,8 @@ async def check_database_health() -> Dict[str, Any]:
             "checked_out_connections": getattr(db.engine.pool, "checkedout", "unknown"),
         }
 
-        # Try to get table counts (if tables exist)
         try:
             async with db.get_session() as session:
-                # This will be updated when actual models are implemented
                 result = await session.execute("SELECT name FROM sqlite_master WHERE type='table'")
                 tables = result.fetchall()
                 stats["table_count"] = len(tables)
@@ -82,23 +74,36 @@ async def check_database_health() -> Dict[str, Any]:
         return {"status": "unhealthy", "error": str(e)}
 
 
-async def check_redis_health() -> Dict[str, Any]:
-    """Check Redis connectivity and metrics."""
+def check_scheduler_health() -> Dict[str, Any]:
+    """Check APScheduler status and jobs."""
     try:
-        # Basic ping test
-        await redis_client.ping()
+        scheduler = get_scheduler()
+        if scheduler is None:
+            return {"status": "not_initialized"}
 
-        # Get Redis info
-        info = await redis_client.info()
+        jobs = get_jobs()
+        running = scheduler.running if scheduler else False
+
+        return {
+            "status": "healthy" if running else "stopped",
+            "running": running,
+            "scheduled_jobs": len(jobs),
+            "jobs": [{"id": j["id"], "next_run": j["next_run_time"]} for j in jobs],
+        }
+
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
+
+def check_progress_tracker() -> Dict[str, Any]:
+    """Check in-memory progress tracker status."""
+    try:
+        tracker = get_progress_tracker()
+        active_tasks = tracker.list_active()
 
         return {
             "status": "healthy",
-            "version": info.get("redis_version", "unknown"),
-            "memory_used": info.get("used_memory_human", "unknown"),
-            "connected_clients": info.get("connected_clients", "unknown"),
-            "total_commands_processed": info.get("total_commands_processed", "unknown"),
-            "keyspace_hits": info.get("keyspace_hits", "unknown"),
-            "keyspace_misses": info.get("keyspace_misses", "unknown"),
+            "active_tasks": len(active_tasks),
         }
 
     except Exception as e:
@@ -108,13 +113,11 @@ async def check_redis_health() -> Dict[str, Any]:
 async def check_chroma_health() -> Dict[str, Any]:
     """Check Chroma vector database connectivity."""
     try:
-        # Basic connectivity test
         heartbeat = await chroma_client.heartbeat()
 
         if not heartbeat:
             return {"status": "unhealthy", "error": "Heartbeat failed"}
 
-        # Get collection information
         collections = await chroma_client.list_collections()
 
         return {
@@ -144,12 +147,7 @@ def get_system_metrics() -> Dict[str, Any]:
 
 @router.get("/health", response_model=HealthStatus)
 async def basic_health_check():
-    """
-    Basic health check endpoint.
-
-    Returns application status and basic information.
-    Used by load balancers and Fly.io health checks.
-    """
+    """Basic health check endpoint."""
     uptime = time.time() - app_start_time
 
     return HealthStatus(
@@ -164,23 +162,16 @@ async def basic_health_check():
 
 @router.get("/health/detailed", response_model=HealthStatus)
 async def detailed_health_check():
-    """
-    Detailed health check including all dependencies.
-
-    Checks database, Redis, and Chroma connectivity.
-    May take longer to respond due to dependency checks.
-    """
+    """Detailed health check including all dependencies."""
     uptime = time.time() - app_start_time
 
-    # Check all services in parallel
+    # Check services
     db_task = asyncio.create_task(check_database_health())
-    redis_task = asyncio.create_task(check_redis_health())
     chroma_task = asyncio.create_task(check_chroma_health())
 
-    # Wait for all checks with timeout
     try:
-        db_status, redis_status, chroma_status = await asyncio.wait_for(
-            asyncio.gather(db_task, redis_task, chroma_task),
+        db_status, chroma_status = await asyncio.wait_for(
+            asyncio.gather(db_task, chroma_task),
             timeout=10.0
         )
     except asyncio.TimeoutError:
@@ -189,16 +180,19 @@ async def detailed_health_check():
             detail="Health check timed out"
         )
 
+    scheduler_status = check_scheduler_health()
+    progress_status = check_progress_tracker()
+
     services = {
         "api": "healthy",
         "database": db_status.get("status", "unknown"),
-        "redis": redis_status.get("status", "unknown"),
+        "scheduler": scheduler_status.get("status", "unknown"),
+        "progress_tracker": progress_status.get("status", "unknown"),
         "chroma": chroma_status.get("status", "unknown"),
     }
 
-    # Determine overall status
     overall_status = "healthy" if all(
-        status == "healthy" for status in services.values()
+        s == "healthy" for s in services.values()
     ) else "degraded"
 
     return HealthStatus(
@@ -213,24 +207,13 @@ async def detailed_health_check():
 
 @router.get("/health/live")
 async def liveness_probe():
-    """
-    Kubernetes-style liveness probe.
-
-    Returns 200 if the application is running.
-    Used to determine if the container should be restarted.
-    """
+    """Kubernetes-style liveness probe."""
     return {"status": "alive", "timestamp": datetime.now(timezone.utc)}
 
 
 @router.get("/health/ready")
 async def readiness_probe():
-    """
-    Kubernetes-style readiness probe.
-
-    Returns 200 if the application is ready to serve traffic.
-    Checks critical dependencies.
-    """
-    # Check critical services
+    """Kubernetes-style readiness probe."""
     try:
         db_healthy = await db.health_check()
         if not db_healthy:
@@ -250,28 +233,19 @@ async def readiness_probe():
 
 @router.get("/metrics", response_model=MetricsResponse)
 async def get_metrics():
-    """
-    Application metrics endpoint.
-
-    Returns detailed metrics for monitoring and alerting.
-    Compatible with Prometheus scraping.
-    """
+    """Application metrics endpoint."""
     timestamp = datetime.now(timezone.utc)
 
-    # Gather metrics from all services
     system_metrics = get_system_metrics()
 
-    # Application metrics
     app_metrics = {
         "uptime_seconds": time.time() - app_start_time,
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
-        "python_version": f"{psutil.PYTHON_VERSION_INFO.major}.{psutil.PYTHON_VERSION_INFO.minor}.{psutil.PYTHON_VERSION_INFO.micro}",
     }
 
-    # Service metrics
     db_metrics = await check_database_health()
-    redis_metrics = await check_redis_health()
+    scheduler_metrics = check_scheduler_health()
     chroma_metrics = await check_chroma_health()
 
     return MetricsResponse(
@@ -279,21 +253,16 @@ async def get_metrics():
         system=system_metrics,
         application=app_metrics,
         database=db_metrics,
-        redis=redis_metrics,
+        scheduler=scheduler_metrics,
         chroma=chroma_metrics
     )
 
 
 @router.get("/metrics/prometheus", response_class=PlainTextResponse)
 async def prometheus_metrics():
-    """
-    Prometheus-formatted metrics endpoint.
-
-    Returns metrics in Prometheus exposition format.
-    """
+    """Prometheus-formatted metrics endpoint."""
     metrics = await get_metrics()
 
-    # Convert to Prometheus format
     prometheus_output = []
 
     # System metrics
@@ -312,17 +281,12 @@ async def prometheus_metrics():
     else:
         prometheus_output.append("mochi_donut_database_healthy 0")
 
-    # Redis metrics
-    if metrics.redis.get("status") == "healthy":
-        prometheus_output.append("mochi_donut_redis_healthy 1")
-        if "connected_clients" in metrics.redis:
-            try:
-                clients = int(metrics.redis["connected_clients"])
-                prometheus_output.append(f"mochi_donut_redis_connected_clients {clients}")
-            except (ValueError, TypeError):
-                pass
+    # Scheduler metrics
+    if metrics.scheduler.get("status") == "healthy":
+        prometheus_output.append("mochi_donut_scheduler_healthy 1")
+        prometheus_output.append(f"mochi_donut_scheduled_jobs {metrics.scheduler.get('scheduled_jobs', 0)}")
     else:
-        prometheus_output.append("mochi_donut_redis_healthy 0")
+        prometheus_output.append("mochi_donut_scheduler_healthy 0")
 
     # Chroma metrics
     if metrics.chroma.get("status") == "healthy":
@@ -337,17 +301,19 @@ async def prometheus_metrics():
 
 @router.get("/status")
 async def application_status():
-    """
-    Application status endpoint.
+    """Application status endpoint."""
+    scheduler_info = check_scheduler_health()
 
-    Returns current application status and configuration.
-    """
     return {
         "name": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
         "api_version": settings.API_V1_STR,
         "uptime_seconds": time.time() - app_start_time,
+        "scheduler": {
+            "running": scheduler_info.get("running", False),
+            "scheduled_jobs": scheduler_info.get("scheduled_jobs", 0),
+        },
         "configuration": {
             "ai_caching_enabled": settings.AI_CACHING_ENABLED,
             "default_ai_model": settings.DEFAULT_AI_MODEL,
@@ -361,11 +327,7 @@ async def application_status():
 
 @router.post("/health/simulate-failure")
 async def simulate_failure():
-    """
-    Simulate application failure for testing.
-
-    Only available in development environment.
-    """
+    """Simulate application failure for testing."""
     if not settings.is_development:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

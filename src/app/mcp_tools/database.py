@@ -5,8 +5,8 @@
 from claude_agent_sdk import tool
 from typing import Dict, Any, List
 from sqlalchemy import select
-from src.app.core.database import db
-from src.app.db.models import Content, Prompt, QualityMetric
+from app.core.database import db
+from app.db.models import Content, Prompt, QualityMetric
 import uuid
 
 

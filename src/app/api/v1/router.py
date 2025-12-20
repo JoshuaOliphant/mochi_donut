@@ -6,7 +6,7 @@ and configures common middleware and dependencies.
 
 from fastapi import APIRouter
 
-from src.app.api.v1.endpoints import content, prompts, search, analytics, monitoring, process
+from app.api.v1.endpoints import content, prompts, search, analytics, monitoring, process
 
 # Create main API router
 api_router = APIRouter()

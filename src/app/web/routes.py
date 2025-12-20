@@ -289,9 +289,12 @@ async def settings(
         }
 
         # System information
+        from app.background.scheduler import get_scheduler, get_jobs
+        scheduler = get_scheduler()
         system_info = {
             "version": "1.0.0",
-            "redis_connected": True,
+            "scheduler_running": scheduler.running if scheduler else False,
+            "scheduled_jobs": len(get_jobs()) if scheduler else 0,
             "last_backup": datetime.now() - timedelta(days=1)
         }
 
