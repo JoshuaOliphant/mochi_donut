@@ -1,53 +1,27 @@
 [project]
 name = "mochi-donut"
-version = "0.1.0"
-description = "Spaced repetition learning integration with Claude Agent SDK"
+version = "0.2.0"
+description = "MCP server for converting web content into Mochi flashcards"
 readme = "README.md"
 authors = [
     { name = "Joshua Oliphant", email = "joshua.oliphant@hey.com" }
 ]
 requires-python = ">=3.11"
 dependencies = [
-    # Core Framework
-    "fastapi>=0.117.1",
-    "uvicorn[standard]>=0.36.0",
+    # MCP Server Framework
+    "fastmcp>=2.0.0",
 
-    # AI - Claude Agent SDK (replacing LangChain/LangGraph)
-    "claude-agent-sdk>=0.1.6",
-
-    # Database
-    "sqlalchemy[asyncio]>=2.0.43",
-    "alembic>=1.16.5",
-    "aiosqlite>=0.21.0",
-    "asyncpg>=0.30.0",
-
-    # Data Validation
-    "pydantic>=2.11.9",
-    "pydantic-settings>=2.10.1",
-
-    # Integrations
-    "chromadb>=1.1.0",
+    # HTTP Client for JinaAI and Mochi APIs
     "httpx>=0.28.1",
-    "aiohttp>=3.10.0",
+]
 
-    # Background Tasks (APScheduler replaces Celery/Redis)
-    "apscheduler>=3.10.0",
-
-    # Web Interface
-    "jinja2>=3.1.6",
-    "python-multipart>=0.0.20",
-
-    # Utilities
-    "python-dotenv>=1.1.1",
-    "python-jose[cryptography]>=3.5.0",
-    "structlog>=24.4.0",
-    "psutil>=6.1.0",
-
+[project.optional-dependencies]
+dev = [
     # Testing
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-mock>=3.15.1",
-    "pytest-cov>=7.0.0",
+    "respx>=0.22.0",  # For mocking httpx requests
 ]
 
 [project.scripts]
@@ -64,3 +38,21 @@ python_functions = ["test_*"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "respx>=0.22.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mochi_donut"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]  # Line length handled by formatter
