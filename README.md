@@ -1,92 +1,91 @@
 # Mochi Donut
 
-Spaced repetition learning integration system powered by Claude Agent SDK.
+An MCP server that converts web content into high-quality Mochi flashcards following Andy Matuschak's spaced repetition principles.
 
-## Overview
+## Features
 
-Mochi Donut converts content from various sources (web articles, PDFs, podcasts) into high-quality flashcards following Andy Matuschak's principles for effective spaced repetition learning. The system uses Claude Agent SDK's multi-agent architecture to intelligently generate, review, and refine flashcard prompts.
-
-## Architecture
-
-**AI Framework**: Claude Agent SDK with specialized subagents
-- **Content Analyzer**: Extracts key concepts and assesses complexity
-- **Prompt Generator**: Creates diverse flashcard types
-- **Quality Reviewer**: Evaluates prompts against Matuschak's principles
-- **Refinement Agent**: Iteratively improves low-quality prompts
-
-**Backend**: FastAPI with async SQLAlchemy 2.0
-**Vector Database**: Chroma for semantic search
-**Task Queue**: Celery + Redis for background processing
-**Frontend**: Jinja2 + HTMX + Tailwind CSS
+- **fetch_url** - Extract clean markdown from any URL via JinaAI Reader
+- **list_decks** - List your Mochi decks
+- **create_cards** - Create flashcards in Mochi (single or batch)
+- Built-in resources with Matuschak's flashcard writing principles
+- Prompt templates for generating and reviewing flashcards
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
-- uv (for dependency management)
-- Redis (for Celery)
+- [uv](https://docs.astral.sh/uv/) for dependency management
+- Mochi API key from https://app.mochi.cards/settings/api
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://github.com/JoshuaOliphant/mochi_donut.git
 cd mochi_donut
-
-# Copy environment template
-cp .env.sample .env
-
-# Edit .env with your API keys
-# - ANTHROPIC_API_KEY: Your Claude API key
-# - MOCHI_API_KEY: Your Mochi API key
-
-# Install dependencies
 uv sync
-
-# Initialize database
-uv run alembic upgrade head
 ```
 
-### Running the Application
+### Running the Server
 
 ```bash
-# Start the development server
-uv run uvicorn src.app.main:app --reload --host 0.0.0.0 --port 8000
-
-# In another terminal, start Celery worker
-uv run celery -A src.app.tasks.celery_app worker --loglevel=info
+uv run python -m mochi_donut.server
 ```
+
+### Installing in Claude Code
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mochi-donut": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/mochi_donut", "python", "-m", "mochi_donut.server"],
+      "env": {
+        "MOCHI_API_KEY": "your-mochi-api-key"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Code, then you can say things like:
+- "Create flashcards from this article: https://example.com/article"
+- "List my Mochi decks"
+
+## Usage Example
+
+Once installed in Claude Code:
+
+1. Provide a URL to create flashcards from
+2. Claude fetches the content using `fetch_url`
+3. Claude reads the `matuschak://principles` resource for guidance
+4. Claude generates flashcards following those principles
+5. Claude uses `list_decks` to find your target deck
+6. Claude creates the cards using `create_cards`
 
 ## Development
 
-See [CLAUDE.md](./CLAUDE.md) for detailed development guidelines and workflow.
-
-### Issue Tracking
-
-This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. See [AGENTS.md](./AGENTS.md) for workflow details.
-
 ```bash
-# Check ready work
-bd ready
+# Run tests
+uv run pytest
 
-# Claim an issue
-bd update <issue-id> --status in_progress
-
-# Complete work
-bd close <issue-id> --reason "Completed"
+# Run specific test
+uv run pytest tests/test_server.py::TestFetchUrlTool -v
 ```
 
-## Project Status
+## Architecture
 
-Currently implementing Phase 0: Foundation with Claude Agent SDK migration.
+Minimal MCP server built with [FastMCP](https://gofastmcp.com):
 
-- Step 1: Project initialization
-- Step 2: Database models
-- Step 3: FastAPI skeleton
-- Step 4: Pydantic schemas
+```
+src/mochi_donut/
+├── __init__.py     # Package entry point
+└── server.py       # MCP server with tools, resources, and prompts
+```
 
-See planning documents in `history/` for detailed implementation plans.
+Dependencies: `fastmcp`, `httpx`
 
 ## License
 
