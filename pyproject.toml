@@ -20,6 +20,7 @@ dev = [
     # Testing
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.1.0",
     "pytest-mock>=3.15.1",
     "respx>=0.22.0",  # For mocking httpx requests
 ]
@@ -43,6 +44,7 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.1.0",
     "respx>=0.22.0",
 ]
 
@@ -56,3 +58,12 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 ignore = ["E501"]  # Line length handled by formatter
+
+[tool.coverage.run]
+branch = true
+source = ["src/mochi_donut"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 100
