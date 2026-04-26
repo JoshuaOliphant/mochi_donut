@@ -27,7 +27,7 @@ Core business logic lives in `_impl` functions (e.g., `_fetch_url_impl`) which a
 # Run the MCP server
 uv run python -m mochi_donut.server
 
-# Run all tests
+# Run all tests (enforces 100% coverage; fails under threshold)
 uv run pytest
 
 # Run specific test class
@@ -36,6 +36,26 @@ uv run pytest tests/test_server.py::TestFetchUrlTool -v
 # Run single test
 uv run pytest tests/test_server.py::TestFetchUrlTool::test_fetch_url_success -v
 ```
+
+## Coverage Rule (REQUIRED)
+
+This project enforces **100% line and branch coverage** of `src/mochi_donut`.
+The threshold is wired into `pytest.ini` via `--cov-fail-under=100`, so any
+drop below 100% fails `uv run pytest`.
+
+Whenever you add or change code:
+1. Add tests that cover every new line and branch — including error paths,
+   wrapper functions, and `__main__` entry points.
+2. Run `uv run pytest` and confirm the coverage report shows 100%.
+3. If a line is genuinely unreachable, delete it rather than excluding it
+   from coverage. Do **not** add `# pragma: no cover` to paper over gaps.
+4. Prefer making code testable (extract `_impl` helpers, dependency-inject
+   side effects) over carving out exemptions.
+
+Decorated FastMCP objects (`@mcp.tool`, `@mcp.resource`, `@mcp.prompt`) wrap
+the original function in a `FunctionTool`/`FunctionResource`/`FunctionPrompt`.
+To cover the wrapped body, call `.fn(...)` on the registered object — see
+`tests/test_server.py::TestToolWrappers` for the pattern.
 
 ## Environment Variables
 
