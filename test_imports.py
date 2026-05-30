@@ -3,9 +3,8 @@
 # ABOUTME: Reports on accessibility of key functions and classes
 
 import sys
-import traceback
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -28,9 +27,7 @@ class ImportValidator:
             error_msg = f"❌ {module_path}\n   Error: {str(e)}"
             return False, error_msg
 
-    def test_class_accessibility(
-        self, module_path: str, class_name: str
-    ) -> Tuple[bool, str]:
+    def test_class_accessibility(self, module_path: str, class_name: str) -> Tuple[bool, str]:
         """Test that a specific class is accessible."""
         try:
             module = __import__(module_path, fromlist=[class_name])
@@ -40,9 +37,7 @@ class ImportValidator:
             error_msg = f"❌ {module_path}.{class_name}\n   Error: {str(e)}"
             return False, error_msg
 
-    def test_function_accessibility(
-        self, module_path: str, function_name: str
-    ) -> Tuple[bool, str]:
+    def test_function_accessibility(self, module_path: str, function_name: str) -> Tuple[bool, str]:
         """Test that a specific function is accessible."""
         try:
             module = __import__(module_path, fromlist=[function_name])

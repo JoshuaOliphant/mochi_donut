@@ -10,23 +10,23 @@ Key capabilities:
 - Comprehensive error handling and reporting
 """
 
-import subprocess
-import sys
-import os
 import json
+import os
 import re
-import logging
+import subprocess
 import time
 import uuid
-from typing import Optional, List, Dict, Any, Tuple, Final, Literal
 from enum import Enum
-from pydantic import BaseModel
+from typing import Any, Dict, List, Literal, Optional, Tuple
+
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 
 # Retry codes for Claude Code execution errors
 class RetryCode(str, Enum):
     """Codes indicating different types of errors that may be retryable."""
+
     CLAUDE_CODE_ERROR = "claude_code_error"  # General Claude Code CLI error
     TIMEOUT_ERROR = "timeout_error"  # Command timed out
     EXECUTION_ERROR = "execution_error"  # Error during execution
@@ -34,10 +34,9 @@ class RetryCode(str, Enum):
     NONE = "none"  # No retry needed
 
 
-
-
 class AgentPromptRequest(BaseModel):
     """Claude Code agent prompt configuration."""
+
     prompt: str
     adw_id: str
     agent_name: str = "ops"
@@ -49,6 +48,7 @@ class AgentPromptRequest(BaseModel):
 
 class AgentPromptResponse(BaseModel):
     """Claude Code agent response."""
+
     output: str
     success: bool
     session_id: Optional[str] = None
@@ -57,6 +57,7 @@ class AgentPromptResponse(BaseModel):
 
 class AgentTemplateRequest(BaseModel):
     """Claude Code agent template execution request."""
+
     agent_name: str
     slash_command: str
     args: List[str]
@@ -67,6 +68,7 @@ class AgentTemplateRequest(BaseModel):
 
 class ClaudeCodeResultMessage(BaseModel):
     """Claude Code JSONL result message (last line)."""
+
     type: str
     subtype: str
     is_error: bool
@@ -90,13 +92,11 @@ def get_safe_subprocess_env() -> Dict[str, str]:
     safe_env_vars = {
         # Anthropic Configuration (required for API mode)
         "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY"),
-
         # Claude Code Configuration
         "CLAUDE_CODE_PATH": os.getenv("CLAUDE_CODE_PATH", "claude"),
         "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": os.getenv(
             "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR", "true"
         ),
-
         # Essential system environment variables
         "HOME": os.getenv("HOME"),
         "USER": os.getenv("USER"),
@@ -105,11 +105,9 @@ def get_safe_subprocess_env() -> Dict[str, str]:
         "TERM": os.getenv("TERM"),
         "LANG": os.getenv("LANG"),
         "LC_ALL": os.getenv("LC_ALL"),
-
         # Python-specific variables that subprocesses might need
         "PYTHONPATH": os.getenv("PYTHONPATH"),
         "PYTHONUNBUFFERED": "1",  # Useful for subprocess output
-
         # Working directory tracking
         "PWD": os.getcwd(),
     }
@@ -183,11 +181,7 @@ def generate_short_id() -> str:
     return str(uuid.uuid4())[:8]
 
 
-
-
-def truncate_output(
-    output: str, max_length: int = 500, suffix: str = "... (truncated)"
-) -> str:
+def truncate_output(output: str, max_length: int = 500, suffix: str = "... (truncated)") -> str:
     """Truncate output to a reasonable length for display.
 
     Special handling for JSONL data - if the output appears to be JSONL,
@@ -220,7 +214,7 @@ def truncate_output(
                         text = content[0].get("text", "")
                         if text:
                             return truncate_output(text, max_length, suffix)
-            except:
+            except Exception:
                 pass
         # If we couldn't extract anything meaningful, just show that it's JSONL
         return f"[JSONL output with {len(lines)} messages]{suffix}"
@@ -249,13 +243,9 @@ def truncate_output(
 def check_claude_installed() -> Optional[str]:
     """Check if Claude Code CLI is installed. Return error message if not."""
     try:
-        result = subprocess.run(
-            [CLAUDE_PATH, "--version"], capture_output=True, text=True
-        )
+        result = subprocess.run([CLAUDE_PATH, "--version"], capture_output=True, text=True)
         if result.returncode != 0:
-            return (
-                f"Error: Claude Code CLI is not installed. Expected at: {CLAUDE_PATH}"
-            )
+            return f"Error: Claude Code CLI is not installed. Expected at: {CLAUDE_PATH}"
     except FileNotFoundError:
         return f"Error: Claude Code CLI is not installed. Expected at: {CLAUDE_PATH}"
     return None
@@ -282,7 +272,7 @@ def parse_jsonl_output(
                     break
 
             return messages, result_message
-    except Exception as e:
+    except Exception:
         return [], None
 
 
@@ -371,9 +361,7 @@ def save_prompt(prompt: str, adw_id: str, agent_name: str = "ops") -> None:
 
     # Create directory structure at project root (parent of adws)
     # __file__ is in adws/adw_modules/, so we need to go up 2 levels to get to project root
-    project_root = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     prompt_dir = os.path.join(project_root, "agents", adw_id, agent_name, "prompts")
     os.makedirs(prompt_dir, exist_ok=True)
 
@@ -491,7 +479,6 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
             )
 
         if result.returncode == 0:
-
             # Parse the JSONL file
             messages, result_message = parse_jsonl_output(request.output_file)
 
@@ -546,19 +533,19 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
                             for line in reversed(last_lines):
                                 try:
                                     data = json.loads(line.strip())
-                                    if data.get("type") == "assistant" and data.get(
-                                        "message"
-                                    ):
+                                    if data.get("type") == "assistant" and data.get("message"):
                                         # Extract text from assistant message
                                         content = data["message"].get("content", [])
                                         if isinstance(content, list) and content:
                                             text = content[0].get("text", "")
                                             if text:
-                                                error_msg = f"Claude Code output: {text[:500]}"  # Truncate
+                                                error_msg = (
+                                                    f"Claude Code output: {text[:500]}"  # Truncate
+                                                )
                                                 break
-                                except:
+                                except Exception:
                                     pass
-                except:
+                except Exception:
                     pass
 
                 return AgentPromptResponse(
@@ -585,15 +572,14 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
                     elif messages:
                         # Look for error in last few messages
                         for msg in reversed(messages[-5:]):
-                            if msg.get("type") == "assistant" and msg.get(
-                                "message", {}
-                            ).get("content"):
+                            if msg.get("type") == "assistant" and msg.get("message", {}).get(
+                                "content"
+                            ):
                                 content = msg["message"]["content"]
                                 if isinstance(content, list) and content:
                                     text = content[0].get("text", "")
                                     if text and (
-                                        "error" in text.lower()
-                                        or "failed" in text.lower()
+                                        "error" in text.lower() or "failed" in text.lower()
                                     ):
                                         error_from_jsonl = text[:500]  # Truncate
                                         break
@@ -604,10 +590,8 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
                             lines = f.readlines()
                             if lines:
                                 # Just get the last line instead of entire file
-                                stdout_msg = lines[-1].strip()[
-                                    :200
-                                ]  # Truncate to 200 chars
-            except:
+                                stdout_msg = lines[-1].strip()[:200]  # Truncate to 200 chars
+            except Exception:
                 pass
 
             if error_from_jsonl:
@@ -666,12 +650,8 @@ def execute_template(request: AgentTemplateRequest) -> AgentPromptResponse:
 
     # Create output directory with adw_id at project root
     # __file__ is in adws/adw_modules/, so we need to go up 2 levels to get to project root
-    project_root = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
-    output_dir = os.path.join(
-        project_root, "agents", request.adw_id, request.agent_name
-    )
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    output_dir = os.path.join(project_root, "agents", request.adw_id, request.agent_name)
     os.makedirs(output_dir, exist_ok=True)
 
     # Build output file path

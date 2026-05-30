@@ -13,21 +13,19 @@ ABOUTME: ADW script to create TDD implementation plans from specifications
 ABOUTME: Breaks large tasks into GitHub issue-sized chunks with dependency tracking
 """
 
-import os
 import sys
 import uuid
-import click
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Literal, Optional
+
+import click
 
 # Add adw_modules to path
 sys.path.insert(0, str(Path(__file__).parent / "adw_modules"))
 
 from agent import (
-    prompt_claude_code_with_retry,
-    execute_template,
-    AgentPromptRequest,
     AgentTemplateRequest,
+    execute_template,
 )
 
 
@@ -124,7 +122,7 @@ def main(
     result = execute_template(template_request)
 
     if not result.success:
-        click.echo(f"❌ Plan generation failed", err=True)
+        click.echo("❌ Plan generation failed", err=True)
         click.echo(f"Output: {result.output[:800]}", err=True)  # Show first 800 chars
         sys.exit(1)
 
@@ -148,13 +146,13 @@ def main(
     plan_content = plan_file.read_text()
 
     # Count tasks (simple parsing)
-    task_lines = [line for line in plan_content.split('\n') if line.startswith('### Task ')]
+    task_lines = [line for line in plan_content.split("\n") if line.startswith("### Task ")]
     num_tasks = len(task_lines)
 
     # Count complexity
-    complexity_s = plan_content.count('**Complexity**: S')
-    complexity_m = plan_content.count('**Complexity**: M')
-    complexity_l = plan_content.count('**Complexity**: L')
+    complexity_s = plan_content.count("**Complexity**: S")
+    complexity_m = plan_content.count("**Complexity**: M")
+    complexity_l = plan_content.count("**Complexity**: L")
 
     click.echo("📊 Plan Summary:")
     click.echo(f"   Total tasks: {num_tasks}")
@@ -176,6 +174,7 @@ def main(
 
         # Check if gh CLI is available
         import subprocess
+
         try:
             subprocess.run(["gh", "--version"], capture_output=True, check=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
@@ -196,8 +195,8 @@ def main(
     click.echo(f"   cat {plan_file}")
     click.echo()
     click.echo("2. Implement tasks in order:")
-    click.echo(f"   # Extract task specs from plan and use /implement")
-    click.echo(f"   # Or manually implement following the task breakdown")
+    click.echo("   # Extract task specs from plan and use /implement")
+    click.echo("   # Or manually implement following the task breakdown")
     click.echo()
     click.echo("3. Track progress:")
     click.echo("   # Mark tasks complete in the plan file")

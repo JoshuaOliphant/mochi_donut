@@ -61,7 +61,9 @@ jobs:
         uv run ruff format --check .
 
     - name: Run type checking
-      run: uv run mypy src/
+      run: |
+        uv run mypy src/
+        uv run ty check src/
 
     - name: Run security scan
       run: uv run bandit -r src/

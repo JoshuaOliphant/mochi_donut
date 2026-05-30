@@ -4,12 +4,12 @@ This tests the core app without all the endpoints that have import issues.
 """
 
 import os
+
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["ENVIRONMENT"] = "development"
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 
 # Create a minimal version of the app for testing
 app = FastAPI(
@@ -21,11 +21,7 @@ app = FastAPI(
 @app.get("/health")
 async def health_check():
     """Basic health check endpoint."""
-    return {
-        "status": "healthy",
-        "version": "0.1.0",
-        "environment": "development"
-    }
+    return {"status": "healthy", "version": "0.1.0", "environment": "development"}
 
 
 @app.get("/health/detailed")
@@ -40,7 +36,7 @@ async def detailed_health_check():
             "claude_sdk": "not_implemented",
             "redis": "not_implemented",
             "chroma": "not_implemented",
-        }
+        },
     }
 
 

@@ -8,8 +8,8 @@ with proper configuration for different environments.
 
 import argparse
 import os
-import sys
 import subprocess
+import sys
 from typing import List, Optional
 
 
@@ -32,20 +32,26 @@ def start_worker(
     concurrency: int = 4,
     loglevel: str = "info",
     max_tasks_per_child: int = 1000,
-    environment: str = "development"
+    environment: str = "development",
 ) -> int:
     """Start a Celery worker with specified configuration."""
 
     # Set environment variables
     env = os.environ.copy()
-    env.update({
-        "CELERY_LOG_LEVEL": loglevel.upper(),
-        "ENVIRONMENT": environment,
-    })
+    env.update(
+        {
+            "CELERY_LOG_LEVEL": loglevel.upper(),
+            "ENVIRONMENT": environment,
+        }
+    )
 
     # Base command
     cmd = [
-        "uv", "run", "celery", "-A", "app.tasks",
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "app.tasks",
         "worker",
         f"--loglevel={loglevel}",
         f"--concurrency={concurrency}",
@@ -58,16 +64,20 @@ def start_worker(
 
     # Add environment-specific options
     if environment == "production":
-        cmd.extend([
-            "--without-gossip",
-            "--without-mingle",
-            "--without-heartbeat",
-            "--pool=prefork",
-        ])
+        cmd.extend(
+            [
+                "--without-gossip",
+                "--without-mingle",
+                "--without-heartbeat",
+                "--pool=prefork",
+            ]
+        )
     elif environment == "development":
-        cmd.extend([
-            "--pool=solo",  # Single process for development
-        ])
+        cmd.extend(
+            [
+                "--pool=solo",  # Single process for development
+            ]
+        )
 
     return run_command(cmd, env)
 
@@ -76,23 +86,31 @@ def start_beat(loglevel: str = "info", environment: str = "development") -> int:
     """Start Celery Beat scheduler."""
 
     env = os.environ.copy()
-    env.update({
-        "CELERY_LOG_LEVEL": loglevel.upper(),
-        "ENVIRONMENT": environment,
-    })
+    env.update(
+        {
+            "CELERY_LOG_LEVEL": loglevel.upper(),
+            "ENVIRONMENT": environment,
+        }
+    )
 
     cmd = [
-        "uv", "run", "celery", "-A", "app.tasks",
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "app.tasks",
         "beat",
         f"--loglevel={loglevel}",
     ]
 
     # Add environment-specific options
     if environment == "production":
-        cmd.extend([
-            "--pidfile=/tmp/celerybeat.pid",
-            "--schedule=/tmp/celerybeat-schedule",
-        ])
+        cmd.extend(
+            [
+                "--pidfile=/tmp/celerybeat.pid",
+                "--schedule=/tmp/celerybeat-schedule",
+            ]
+        )
 
     return run_command(cmd, env)
 
@@ -101,22 +119,30 @@ def start_flower(port: int = 5555, environment: str = "development") -> int:
     """Start Celery Flower monitoring web interface."""
 
     env = os.environ.copy()
-    env.update({
-        "ENVIRONMENT": environment,
-    })
+    env.update(
+        {
+            "ENVIRONMENT": environment,
+        }
+    )
 
     cmd = [
-        "uv", "run", "celery", "-A", "app.tasks",
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "app.tasks",
         "flower",
         f"--port={port}",
         "--broker-api=http://guest:guest@localhost:15672/api/",  # RabbitMQ management API
     ]
 
     if environment == "production":
-        cmd.extend([
-            "--basic_auth=admin:secure_password",  # Change in production
-            "--url_prefix=/flower",
-        ])
+        cmd.extend(
+            [
+                "--basic_auth=admin:secure_password",  # Change in production
+                "--url_prefix=/flower",
+            ]
+        )
 
     return run_command(cmd, env)
 
@@ -144,7 +170,7 @@ def purge_queues(queues: Optional[List[str]] = None, force: bool = False) -> int
 
     if not force:
         confirm = input("This will delete all pending messages. Continue? (y/N): ")
-        if confirm.lower() != 'y':
+        if confirm.lower() != "y":
             print("Aborted.")
             return 0
 
@@ -181,7 +207,7 @@ Examples:
 
   # Purge all queues (be careful!)
   python start_celery.py purge --force
-"""
+""",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -189,64 +215,68 @@ Examples:
     # Worker command
     worker_parser = subparsers.add_parser("worker", help="Start Celery worker")
     worker_parser.add_argument(
-        "-q", "--queues",
+        "-q",
+        "--queues",
         nargs="+",
         choices=["content_processing", "ai_processing", "external_apis", "maintenance"],
-        help="Specific queues to process (default: all)"
+        help="Specific queues to process (default: all)",
     )
     worker_parser.add_argument(
-        "-c", "--concurrency",
+        "-c",
+        "--concurrency",
         type=int,
         default=4,
-        help="Number of concurrent worker processes (default: 4)"
+        help="Number of concurrent worker processes (default: 4)",
     )
     worker_parser.add_argument(
-        "-l", "--loglevel",
+        "-l",
+        "--loglevel",
         choices=["debug", "info", "warning", "error", "critical"],
         default="info",
-        help="Log level (default: info)"
+        help="Log level (default: info)",
     )
     worker_parser.add_argument(
-        "-e", "--environment",
+        "-e",
+        "--environment",
         choices=["development", "staging", "production"],
         default="development",
-        help="Environment (default: development)"
+        help="Environment (default: development)",
     )
     worker_parser.add_argument(
         "--max-tasks-per-child",
         type=int,
         default=1000,
-        help="Max tasks per worker child process (default: 1000)"
+        help="Max tasks per worker child process (default: 1000)",
     )
 
     # Beat command
     beat_parser = subparsers.add_parser("beat", help="Start Celery Beat scheduler")
     beat_parser.add_argument(
-        "-l", "--loglevel",
+        "-l",
+        "--loglevel",
         choices=["debug", "info", "warning", "error", "critical"],
         default="info",
-        help="Log level (default: info)"
+        help="Log level (default: info)",
     )
     beat_parser.add_argument(
-        "-e", "--environment",
+        "-e",
+        "--environment",
         choices=["development", "staging", "production"],
         default="development",
-        help="Environment (default: development)"
+        help="Environment (default: development)",
     )
 
     # Flower command
     flower_parser = subparsers.add_parser("flower", help="Start Flower monitoring")
     flower_parser.add_argument(
-        "-p", "--port",
-        type=int,
-        default=5555,
-        help="Port for Flower web interface (default: 5555)"
+        "-p", "--port", type=int, default=5555, help="Port for Flower web interface (default: 5555)"
     )
     flower_parser.add_argument(
-        "-e", "--environment",
+        "-e",
+        "--environment",
         choices=["development", "staging", "production"],
         default="development",
-        help="Environment (default: development)"
+        help="Environment (default: development)",
     )
 
     # Status command
@@ -255,15 +285,9 @@ Examples:
     # Purge command
     purge_parser = subparsers.add_parser("purge", help="Purge queue messages")
     purge_parser.add_argument(
-        "-q", "--queues",
-        nargs="+",
-        help="Specific queues to purge (default: all)"
+        "-q", "--queues", nargs="+", help="Specific queues to purge (default: all)"
     )
-    purge_parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Skip confirmation prompt"
-    )
+    purge_parser.add_argument("--force", action="store_true", help="Skip confirmation prompt")
 
     args = parser.parse_args()
 
@@ -278,25 +302,16 @@ Examples:
             concurrency=args.concurrency,
             loglevel=args.loglevel,
             max_tasks_per_child=args.max_tasks_per_child,
-            environment=args.environment
+            environment=args.environment,
         )
     elif args.command == "beat":
-        return start_beat(
-            loglevel=args.loglevel,
-            environment=args.environment
-        )
+        return start_beat(loglevel=args.loglevel, environment=args.environment)
     elif args.command == "flower":
-        return start_flower(
-            port=args.port,
-            environment=args.environment
-        )
+        return start_flower(port=args.port, environment=args.environment)
     elif args.command == "status":
         return show_status()
     elif args.command == "purge":
-        return purge_queues(
-            queues=args.queues,
-            force=args.force
-        )
+        return purge_queues(queues=args.queues, force=args.force)
     else:
         print(f"Unknown command: {args.command}")
         return 1

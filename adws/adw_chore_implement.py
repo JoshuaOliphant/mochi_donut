@@ -33,23 +33,22 @@ Examples:
     ./adws/adw_chore_implement.py "Add tests" --verbose
 """
 
-import os
-import sys
 import json
+import os
 import re
-from pathlib import Path
+import sys
+
 import click
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.rule import Rule
+from rich.table import Table
 
 # Add the adw_modules directory to the path so we can import agent
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "adw_modules"))
 
 from agent import (
     AgentTemplateRequest,
-    AgentPromptResponse,
     execute_template,
     generate_short_id,
 )
@@ -209,9 +208,7 @@ def main(
                     padding=(1, 2),
                 )
             )
-            console.print(
-                "\n[bold red]Workflow aborted: Planning phase failed[/bold red]"
-            )
+            console.print("\n[bold red]Workflow aborted: Planning phase failed[/bold red]")
             sys.exit(1)
 
         # Save chore phase summary
@@ -279,9 +276,7 @@ def main(
         console.print()
 
         # Phase 2: Run /implement command
-        console.print(
-            Rule("[bold yellow]Phase 2: Implementation (/implement)[/bold yellow]")
-        )
+        console.print(Rule("[bold yellow]Phase 2: Implementation (/implement)[/bold yellow]"))
         console.print()
 
         # Create the implement request
@@ -462,28 +457,21 @@ def main(
                             "output_dir": f"./agents/{adw_id}/{builder_name}/",
                         },
                     },
-                    "overall_success": chore_response.success
-                    and implement_response.success,
+                    "overall_success": chore_response.success and implement_response.success,
                 },
                 f,
                 indent=2,
             )
 
-        console.print(
-            f"\n[bold cyan]Workflow summary:[/bold cyan] {workflow_summary_path}"
-        )
+        console.print(f"\n[bold cyan]Workflow summary:[/bold cyan] {workflow_summary_path}")
         console.print()
 
         # Exit with appropriate code
         if chore_response.success and implement_response.success:
-            console.print(
-                "[bold green]✅ Workflow completed successfully![/bold green]"
-            )
+            console.print("[bold green]✅ Workflow completed successfully![/bold green]")
             sys.exit(0)
         else:
-            console.print(
-                "[bold yellow]⚠️  Workflow completed with errors[/bold yellow]"
-            )
+            console.print("[bold yellow]⚠️  Workflow completed with errors[/bold yellow]")
             sys.exit(1)
 
     except Exception as e:

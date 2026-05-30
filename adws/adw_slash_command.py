@@ -35,10 +35,10 @@ Examples:
     ./adws/adw_slash_command.py /review --agent-name reviewer
 """
 
+import json
 import os
 import sys
-import json
-from pathlib import Path
+
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -49,7 +49,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "adw_modules"))
 
 from agent import (
     AgentTemplateRequest,
-    AgentPromptResponse,
     execute_template,
     generate_short_id,
 )
@@ -145,9 +144,7 @@ def main(
             console.print(result_panel)
 
             if response.session_id:
-                console.print(
-                    f"\n[bold cyan]Session ID:[/bold cyan] {response.session_id}"
-                )
+                console.print(f"\n[bold cyan]Session ID:[/bold cyan] {response.session_id}")
         else:
             # Error panel
             error_panel = Panel(
@@ -159,9 +156,7 @@ def main(
             console.print(error_panel)
 
             if response.retry_code != "none":
-                console.print(
-                    f"\n[bold yellow]Retry code:[/bold yellow] {response.retry_code}"
-                )
+                console.print(f"\n[bold yellow]Retry code:[/bold yellow] {response.retry_code}")
 
         # Show output file info
         console.print()

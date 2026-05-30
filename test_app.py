@@ -5,9 +5,10 @@ Run with: uv run python test_app.py
 """
 
 import asyncio
+
 import httpx
-from src.app.main import app
 from src.app.core.database import db
+from src.app.main import app
 
 
 async def test_endpoints():
@@ -52,13 +53,13 @@ async def test_endpoints():
             "source_url": "https://example.com/article",
             "source_type": "web",
             "title": "Test Article",
-            "markdown_content": "# Test Article\n\nThis is a test article about spaced repetition learning."
+            "markdown_content": "# Test Article\n\nThis is a test article about spaced repetition learning.",
         }
         response = await client.post("/api/v1/content", json=test_content)
         print(f"Create content: {response.status_code}")
         if response.status_code == 201:
             content = response.json()
-            content_id = content['id']
+            content_id = content["id"]
             print(f"Created content ID: {content_id}")
 
             # Get the created content
@@ -69,7 +70,7 @@ async def test_endpoints():
             print("\n🤖 Testing prompt generation...")
             response = await client.post(
                 f"/api/v1/prompts/generate/{content_id}",
-                json={"count": 5, "types": ["factual", "conceptual"]}
+                json={"count": 5, "types": ["factual", "conceptual"]},
             )
             print(f"Generate prompts: {response.status_code}")
 
