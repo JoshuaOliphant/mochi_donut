@@ -16,29 +16,34 @@ import respx
 from httpx import Response
 
 from mochi_donut.server import (
-    mcp,
     EXAMPLE_FLASHCARDS,
     MATUSCHAK_PRINCIPLES,
     SERVER_INSTRUCTIONS,
+    _create_cards_impl,
     _fetch_url_impl,
     _list_decks_impl,
-    _create_cards_impl,
+    create_cards,
+    fetch_url,
+    generate_flashcards,
+    get_examples,
+    get_principles,
+    list_decks,
     main,
+    mcp,
+    review_flashcards,
 )
 
 
 class TestResources:
     """Test MCP resources are properly defined."""
 
-    def test_principles_resource_exists(self):
+    async def test_principles_resource_exists(self):
         """Verify the matuschak://principles resource is registered."""
-        resources = mcp._resource_manager._resources
-        assert "matuschak://principles" in resources
+        assert await mcp.get_resource("matuschak://principles") is not None
 
-    def test_examples_resource_exists(self):
+    async def test_examples_resource_exists(self):
         """Verify the matuschak://examples resource is registered."""
-        resources = mcp._resource_manager._resources
-        assert "matuschak://examples" in resources
+        assert await mcp.get_resource("matuschak://examples") is not None
 
     def test_principles_content(self):
         """Verify principles resource contains key content."""
@@ -49,46 +54,47 @@ class TestResources:
         assert "Consistent" in MATUSCHAK_PRINCIPLES
 
     def test_principles_resource_returns_content(self):
-        """Invoke the principles resource fn to cover its body."""
-        principles = mcp._resource_manager._resources["matuschak://principles"]
-        assert principles.fn() == MATUSCHAK_PRINCIPLES
+        """Invoke the principles resource fn to cover its body.
+
+        Under FastMCP 3.x the @mcp.resource decorator returns the original
+        function unchanged, so it can be called directly.
+        """
+        assert get_principles() == MATUSCHAK_PRINCIPLES
 
     def test_examples_resource_returns_content(self):
         """Invoke the examples resource fn to cover its body."""
-        examples = mcp._resource_manager._resources["matuschak://examples"]
-        assert examples.fn() == EXAMPLE_FLASHCARDS
+        assert get_examples() == EXAMPLE_FLASHCARDS
 
 
 class TestPrompts:
     """Test MCP prompts are properly defined."""
 
-    def test_generate_flashcards_prompt_exists(self):
+    async def test_generate_flashcards_prompt_exists(self):
         """Verify generate_flashcards prompt is registered."""
-        prompts = mcp._prompt_manager._prompts
-        assert "generate_flashcards" in prompts
+        assert await mcp.get_prompt("generate_flashcards") is not None
 
-    def test_review_flashcards_prompt_exists(self):
+    async def test_review_flashcards_prompt_exists(self):
         """Verify review_flashcards prompt is registered."""
-        prompts = mcp._prompt_manager._prompts
-        assert "review_flashcards" in prompts
+        assert await mcp.get_prompt("review_flashcards") is not None
 
     def test_generate_flashcards_prompt_renders(self):
-        """Invoke the generate_flashcards prompt fn to cover its body."""
-        prompt = mcp._prompt_manager._prompts["generate_flashcards"]
-        rendered = prompt.fn(content="hello world", topic="greetings")
+        """Invoke the generate_flashcards prompt fn to cover its body.
+
+        Under FastMCP 3.x the @mcp.prompt decorator returns the original
+        function unchanged, so it can be called directly.
+        """
+        rendered = generate_flashcards(content="hello world", topic="greetings")
         assert "hello world" in rendered
         assert "greetings" in rendered
 
     def test_generate_flashcards_prompt_default_topic(self):
         """Default topic should appear in the rendered prompt."""
-        prompt = mcp._prompt_manager._prompts["generate_flashcards"]
-        rendered = prompt.fn(content="body")
+        rendered = generate_flashcards(content="body")
         assert "the article" in rendered
 
     def test_review_flashcards_prompt_renders(self):
         """Invoke the review_flashcards prompt fn to cover its body."""
-        prompt = mcp._prompt_manager._prompts["review_flashcards"]
-        rendered = prompt.fn(cards='[{"q": "a"}]')
+        rendered = review_flashcards(cards='[{"q": "a"}]')
         assert '[{"q": "a"}]' in rendered
 
 
@@ -222,8 +228,11 @@ class TestCreateCardsTool:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_create_cards_with_tags(self, monkeypatch):
-        """Test card creation with tags."""
+    async def test_create_cards_request_payload(self, monkeypatch):
+        """Card creation sends the documented Mochi payload and Basic auth."""
+        import base64
+        import json
+
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
         route = respx.post("https://app.mochi.cards/api/cards").mock(
@@ -236,11 +245,21 @@ class TestCreateCardsTool:
 
         await _create_cards_impl("deck-1", cards)
 
-        # Verify tags were included in request
         request = route.calls.last.request
-        import json
         body = json.loads(request.content)
-        assert body["tags"] == ["python", "basics"]
+
+        # Tags use Mochi's "manual-tags" key.
+        assert body["manual-tags"] == ["python", "basics"]
+        # Two-sided cards encode front/back in a single markdown content field
+        # separated by "---".
+        assert body["content"] == "Q1\n---\nA1"
+        assert body["deck-id"] == "deck-1"
+
+        # Mochi uses HTTP Basic auth with the API key as the username.
+        auth_header = request.headers["Authorization"]
+        assert auth_header.startswith("Basic ")
+        decoded = base64.b64decode(auth_header.split(" ", 1)[1]).decode()
+        assert decoded == "test-key:"
 
     @pytest.mark.asyncio
     async def test_create_cards_empty_list(self, monkeypatch):
@@ -332,16 +351,19 @@ class TestServerConfiguration:
         assert "flashcard" in SERVER_INSTRUCTIONS.lower()
         assert "Matuschak" in SERVER_INSTRUCTIONS
 
-    def test_tools_are_registered(self):
+    async def test_tools_are_registered(self):
         """Verify all tools are registered."""
-        tools = mcp._tool_manager._tools
-        assert "fetch_url" in tools
-        assert "list_decks" in tools
-        assert "create_cards" in tools
+        assert await mcp.get_tool("fetch_url") is not None
+        assert await mcp.get_tool("list_decks") is not None
+        assert await mcp.get_tool("create_cards") is not None
 
 
 class TestToolWrappers:
-    """Invoke the @mcp.tool wrapper functions directly to cover their bodies."""
+    """Invoke the @mcp.tool wrapper functions directly to cover their bodies.
+
+    Under FastMCP 3.x the @mcp.tool decorator returns the original function
+    unchanged, so the wrappers imported from the module are directly callable.
+    """
 
     @respx.mock
     @pytest.mark.asyncio
@@ -349,7 +371,6 @@ class TestToolWrappers:
         respx.get("https://r.jina.ai/https://example.com/x").mock(
             return_value=Response(200, text="ok")
         )
-        fetch_url = mcp._tool_manager._tools["fetch_url"].fn
         assert await fetch_url("https://example.com/x") == "ok"
 
     @respx.mock
@@ -359,13 +380,11 @@ class TestToolWrappers:
         respx.get("https://app.mochi.cards/api/decks").mock(
             return_value=Response(200, json={"docs": []})
         )
-        list_decks = mcp._tool_manager._tools["list_decks"].fn
         assert "No decks found" in await list_decks()
 
     @pytest.mark.asyncio
     async def test_create_cards_tool_wrapper(self, monkeypatch):
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
-        create_cards = mcp._tool_manager._tools["create_cards"].fn
         assert "No cards provided" in await create_cards("deck-1", [])
 
 

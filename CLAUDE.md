@@ -19,7 +19,9 @@ The server exposes:
 - **Resources**: `matuschak://principles`, `matuschak://examples`
 - **Prompts**: `generate_flashcards`, `review_flashcards`
 
-Core business logic lives in `_impl` functions (e.g., `_fetch_url_impl`) which are wrapped by `@mcp.tool` decorators. Test the `_impl` functions directly since decorators return `FunctionTool` objects.
+Core business logic lives in `_impl` functions (e.g., `_fetch_url_impl`) which are wrapped by `@mcp.tool` decorators. Test the `_impl` functions directly, or call the decorated wrappers directly — under FastMCP 3.x the `@mcp.tool`/`@mcp.resource`/`@mcp.prompt` decorators return the original function unchanged, so `fetch_url(...)`, `get_principles()`, etc. are all directly callable.
+
+The Mochi API uses **HTTP Basic auth** (the API key is the username, password blank). Cards are created as two-sided markdown: a single `content` field with the front and back separated by a `---` line (`"Question\n---\nAnswer"`), which works on any deck without a template. Tags go in the `manual-tags` field.
 
 ## Development Commands
 
@@ -52,10 +54,15 @@ Whenever you add or change code:
 4. Prefer making code testable (extract `_impl` helpers, dependency-inject
    side effects) over carving out exemptions.
 
-Decorated FastMCP objects (`@mcp.tool`, `@mcp.resource`, `@mcp.prompt`) wrap
-the original function in a `FunctionTool`/`FunctionResource`/`FunctionPrompt`.
-To cover the wrapped body, call `.fn(...)` on the registered object — see
-`tests/test_server.py::TestToolWrappers` for the pattern.
+Under FastMCP 3.x the `@mcp.tool`, `@mcp.resource`, and `@mcp.prompt`
+decorators return the **original function** unchanged (not a
+`FunctionTool`/`FunctionResource`/`FunctionPrompt` wrapper as in 2.x). To
+cover the body, import the decorated function and call it directly — see
+`tests/test_server.py::TestToolWrappers` for the pattern. To assert a
+component is *registered*, use the async public API: `await
+mcp.get_tool(name)`, `await mcp.get_resource(uri)`, `await
+mcp.get_prompt(name)` (the old private `_tool_manager`/`_resource_manager`/
+`_prompt_manager` attributes were removed in 3.x).
 
 ## Environment Variables
 

@@ -24,7 +24,6 @@ Or run directly: uv run python -m mochi_donut.server
 """
 
 import os
-from typing import Optional
 
 import httpx
 from fastmcp import FastMCP
@@ -312,11 +311,9 @@ async def _list_decks_impl() -> str:
     """
     api_key = _get_mochi_api_key()
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MOCHI_API_BASE}/decks",
-            headers={"Authorization": f"Bearer {api_key}"}
-        )
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        response = await client.get(f"{MOCHI_API_BASE}/decks")
         response.raise_for_status()
 
         decks = response.json()
@@ -344,27 +341,24 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
     created_count = 0
     errors = []
 
-    async with httpx.AsyncClient() as client:
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
         for i, card in enumerate(cards):
             if "question" not in card or "answer" not in card:
                 errors.append(f"Card {i+1}: Missing question or answer")
                 continue
 
             try:
+                # Mochi renders a two-sided card from a single markdown `content`
+                # field, with the "---" separator dividing front (question) from
+                # back (answer). This works for any deck without needing a template.
                 response = await client.post(
                     f"{MOCHI_API_BASE}/cards",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
                     json={
                         "deck-id": deck_id,
-                        "content": card["question"],
-                        "fields": {
-                            "answer": {"value": card["answer"]}
-                        },
-                        "tags": card.get("tags", [])
-                    }
+                        "content": f"{card['question']}\n---\n{card['answer']}",
+                        "manual-tags": card.get("tags", []),
+                    },
                 )
                 response.raise_for_status()
                 created_count += 1
@@ -375,7 +369,7 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
 
     result = f"Created {created_count}/{len(cards)} cards"
     if errors:
-        result += f"\nErrors:\n" + "\n".join(errors[:5])
+        result += "\nErrors:\n" + "\n".join(errors[:5])
         if len(errors) > 5:
             result += f"\n...and {len(errors) - 5} more errors"
 
