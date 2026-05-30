@@ -211,6 +211,7 @@ def get_examples() -> str:
 # PROMPTS - Reusable workflow templates
 # =============================================================================
 
+
 @mcp.prompt
 def generate_flashcards(content: str, topic: str = "the article") -> str:
     """
@@ -272,6 +273,7 @@ Then output the final approved list ready for create_cards."""
 # CORE FUNCTIONS - Business logic (testable independently)
 # =============================================================================
 
+
 async def _fetch_url_impl(url: str, format: str = "concise") -> str:
     """
     Core implementation for fetching URL content.
@@ -286,10 +288,7 @@ async def _fetch_url_impl(url: str, format: str = "concise") -> str:
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
             f"{JINA_READER_BASE}/{url}",
-            headers={
-                "Accept": "text/markdown",
-                "X-Return-Format": "markdown"
-            }
+            headers={"Accept": "text/markdown", "X-Return-Format": "markdown"},
         )
         response.raise_for_status()
 
@@ -297,7 +296,9 @@ async def _fetch_url_impl(url: str, format: str = "concise") -> str:
 
         # Token efficiency: truncate for concise mode
         if format == "concise" and len(content) > 8000:
-            content = content[:8000] + "\n\n[Content truncated. Use format='full' for complete text.]"
+            content = (
+                content[:8000] + "\n\n[Content truncated. Use format='full' for complete text.]"
+            )
 
         return content
 
@@ -317,8 +318,7 @@ async def _list_decks_impl() -> str:
         response.raise_for_status()
 
         decks = response.json()
-        lines = [f"{deck['name']}: {deck['id']}"
-                 for deck in decks.get('docs', [])]
+        lines = [f"{deck['name']}: {deck['id']}" for deck in decks.get("docs", [])]
         return "\n".join(lines) if lines else "No decks found. Create one at mochi.cards first."
 
 
@@ -345,7 +345,7 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
     async with httpx.AsyncClient(auth=(api_key, "")) as client:
         for i, card in enumerate(cards):
             if "question" not in card or "answer" not in card:
-                errors.append(f"Card {i+1}: Missing question or answer")
+                errors.append(f"Card {i + 1}: Missing question or answer")
                 continue
 
             try:
@@ -363,9 +363,9 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
                 response.raise_for_status()
                 created_count += 1
             except httpx.HTTPStatusError as e:
-                errors.append(f"Card {i+1}: {e.response.status_code} - {e.response.text[:100]}")
+                errors.append(f"Card {i + 1}: {e.response.status_code} - {e.response.text[:100]}")
             except Exception as e:
-                errors.append(f"Card {i+1}: {str(e)}")
+                errors.append(f"Card {i + 1}: {str(e)}")
 
     result = f"Created {created_count}/{len(cards)} cards"
     if errors:
@@ -379,6 +379,7 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
 # =============================================================================
 # TOOLS - MCP tool wrappers (delegate to core functions)
 # =============================================================================
+
 
 @mcp.tool
 async def fetch_url(url: str, format: str = "concise") -> str:
@@ -444,6 +445,7 @@ async def create_cards(deck_id: str, cards: list[dict]) -> str:
 # =============================================================================
 # Entry Point
 # =============================================================================
+
 
 def main():
     """Run the MCP server."""

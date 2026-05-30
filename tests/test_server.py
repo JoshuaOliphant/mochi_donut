@@ -166,10 +166,7 @@ class TestListDecksTool:
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
         mock_response = {
-            "docs": [
-                {"id": "deck-1", "name": "Python"},
-                {"id": "deck-2", "name": "JavaScript"}
-            ]
+            "docs": [{"id": "deck-1", "name": "Python"}, {"id": "deck-2", "name": "JavaScript"}]
         }
 
         respx.get("https://app.mochi.cards/api/decks").mock(
@@ -219,7 +216,7 @@ class TestCreateCardsTool:
 
         cards = [
             {"question": "What is Python?", "answer": "A programming language"},
-            {"question": "What is HTTP?", "answer": "HyperText Transfer Protocol"}
+            {"question": "What is HTTP?", "answer": "HyperText Transfer Protocol"},
         ]
 
         result = await _create_cards_impl("deck-1", cards)
@@ -239,9 +236,7 @@ class TestCreateCardsTool:
             return_value=Response(200, json={"id": "card-123"})
         )
 
-        cards = [
-            {"question": "Q1", "answer": "A1", "tags": ["python", "basics"]}
-        ]
+        cards = [{"question": "Q1", "answer": "A1", "tags": ["python", "basics"]}]
 
         await _create_cards_impl("deck-1", cards)
 
@@ -280,13 +275,10 @@ class TestCreateCardsTool:
         route = respx.post("https://app.mochi.cards/api/cards")
         route.side_effect = [
             Response(200, json={"id": "card-1"}),
-            Response(400, text="Invalid card")
+            Response(400, text="Invalid card"),
         ]
 
-        cards = [
-            {"question": "Q1", "answer": "A1"},
-            {"question": "Q2", "answer": "A2"}
-        ]
+        cards = [{"question": "Q1", "answer": "A1"}, {"question": "Q2", "answer": "A2"}]
 
         result = await _create_cards_impl("deck-1", cards)
 
@@ -312,13 +304,9 @@ class TestCreateCardsTool:
         """Non-HTTPStatusError exceptions are captured in the error list."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.post("https://app.mochi.cards/api/cards").mock(
-            side_effect=httpx.ConnectError("boom")
-        )
+        respx.post("https://app.mochi.cards/api/cards").mock(side_effect=httpx.ConnectError("boom"))
 
-        result = await _create_cards_impl(
-            "deck-1", [{"question": "Q1", "answer": "A1"}]
-        )
+        result = await _create_cards_impl("deck-1", [{"question": "Q1", "answer": "A1"}])
 
         assert "Created 0/1 cards" in result
         assert "boom" in result
@@ -401,6 +389,7 @@ class TestEntryPoint:
         # runpy re-executes the source, creating a fresh FastMCP instance,
         # so patch run() on the class to intercept any instance.
         from fastmcp import FastMCP
+
         with patch.object(FastMCP, "run") as run_mock:
             runpy.run_module("mochi_donut.server", run_name="__main__")
         run_mock.assert_called_once_with()
