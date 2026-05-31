@@ -24,10 +24,14 @@ Or run directly: uv run python -m mochi_donut.server
 """
 
 import os
-from typing import Optional
+from importlib.metadata import version
 
 import httpx
 from fastmcp import FastMCP
+
+# Single source of truth for the version: read it from the installed package
+# metadata (defined in pyproject.toml) so it never drifts from the build.
+__version__ = version("mochi-donut")
 
 # Configuration
 JINA_READER_BASE = "https://r.jina.ai"
@@ -48,7 +52,7 @@ Typical workflow:
 Always prioritize understanding over memorization. Create focused, specific prompts."""
 
 # Initialize the MCP server
-mcp = FastMCP("mochi-donut", instructions=SERVER_INSTRUCTIONS)
+mcp = FastMCP("mochi-donut", instructions=SERVER_INSTRUCTIONS, version=__version__)
 
 
 def _get_mochi_api_key() -> str:
@@ -212,6 +216,7 @@ def get_examples() -> str:
 # PROMPTS - Reusable workflow templates
 # =============================================================================
 
+
 @mcp.prompt
 def generate_flashcards(content: str, topic: str = "the article") -> str:
     """
@@ -273,6 +278,7 @@ Then output the final approved list ready for create_cards."""
 # CORE FUNCTIONS - Business logic (testable independently)
 # =============================================================================
 
+
 async def _fetch_url_impl(url: str, format: str = "concise") -> str:
     """
     Core implementation for fetching URL content.
@@ -287,10 +293,7 @@ async def _fetch_url_impl(url: str, format: str = "concise") -> str:
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
             f"{JINA_READER_BASE}/{url}",
-            headers={
-                "Accept": "text/markdown",
-                "X-Return-Format": "markdown"
-            }
+            headers={"Accept": "text/markdown", "X-Return-Format": "markdown"},
         )
         response.raise_for_status()
 
@@ -298,7 +301,9 @@ async def _fetch_url_impl(url: str, format: str = "concise") -> str:
 
         # Token efficiency: truncate for concise mode
         if format == "concise" and len(content) > 8000:
-            content = content[:8000] + "\n\n[Content truncated. Use format='full' for complete text.]"
+            content = (
+                content[:8000] + "\n\n[Content truncated. Use format='full' for complete text.]"
+            )
 
         return content
 
@@ -312,16 +317,13 @@ async def _list_decks_impl() -> str:
     """
     api_key = _get_mochi_api_key()
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{MOCHI_API_BASE}/decks",
-            headers={"Authorization": f"Bearer {api_key}"}
-        )
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        response = await client.get(f"{MOCHI_API_BASE}/decks")
         response.raise_for_status()
 
         decks = response.json()
-        lines = [f"{deck['name']}: {deck['id']}"
-                 for deck in decks.get('docs', [])]
+        lines = [f"{deck['name']}: {deck['id']}" for deck in decks.get("docs", [])]
         return "\n".join(lines) if lines else "No decks found. Create one at mochi.cards first."
 
 
@@ -344,38 +346,35 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
     created_count = 0
     errors = []
 
-    async with httpx.AsyncClient() as client:
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
         for i, card in enumerate(cards):
             if "question" not in card or "answer" not in card:
-                errors.append(f"Card {i+1}: Missing question or answer")
+                errors.append(f"Card {i + 1}: Missing question or answer")
                 continue
 
             try:
+                # Mochi renders a two-sided card from a single markdown `content`
+                # field, with the "---" separator dividing front (question) from
+                # back (answer). This works for any deck without needing a template.
                 response = await client.post(
                     f"{MOCHI_API_BASE}/cards",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
                     json={
                         "deck-id": deck_id,
-                        "content": card["question"],
-                        "fields": {
-                            "answer": {"value": card["answer"]}
-                        },
-                        "tags": card.get("tags", [])
-                    }
+                        "content": f"{card['question']}\n---\n{card['answer']}",
+                        "manual-tags": card.get("tags", []),
+                    },
                 )
                 response.raise_for_status()
                 created_count += 1
             except httpx.HTTPStatusError as e:
-                errors.append(f"Card {i+1}: {e.response.status_code} - {e.response.text[:100]}")
+                errors.append(f"Card {i + 1}: {e.response.status_code} - {e.response.text[:100]}")
             except Exception as e:
-                errors.append(f"Card {i+1}: {str(e)}")
+                errors.append(f"Card {i + 1}: {str(e)}")
 
     result = f"Created {created_count}/{len(cards)} cards"
     if errors:
-        result += f"\nErrors:\n" + "\n".join(errors[:5])
+        result += "\nErrors:\n" + "\n".join(errors[:5])
         if len(errors) > 5:
             result += f"\n...and {len(errors) - 5} more errors"
 
@@ -385,6 +384,7 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
 # =============================================================================
 # TOOLS - MCP tool wrappers (delegate to core functions)
 # =============================================================================
+
 
 @mcp.tool
 async def fetch_url(url: str, format: str = "concise") -> str:
@@ -450,6 +450,7 @@ async def create_cards(deck_id: str, cards: list[dict]) -> str:
 # =============================================================================
 # Entry Point
 # =============================================================================
+
 
 def main():
     """Run the MCP server."""

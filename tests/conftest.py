@@ -6,7 +6,6 @@ Pytest configuration for Mochi Donut tests.
 Provides common fixtures for testing the MCP server components.
 """
 
-import os
 import sys
 from pathlib import Path
 
