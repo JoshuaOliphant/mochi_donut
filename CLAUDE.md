@@ -64,6 +64,16 @@ mcp.get_tool(name)`, `await mcp.get_resource(uri)`, `await
 mcp.get_prompt(name)` (the old private `_tool_manager`/`_resource_manager`/
 `_prompt_manager` attributes were removed in 3.x).
 
+## Versioning
+
+The version is defined **once**, in `pyproject.toml`. Both
+`mochi_donut.__version__` and the running server's advertised version
+(`FastMCP(..., version=__version__)`, surfaced as `serverInfo.version` in the
+MCP handshake) read it from the installed package metadata via
+`importlib.metadata.version("mochi-donut")`, so they never drift. To cut a
+release: bump `version` in `pyproject.toml`, add a `CHANGELOG.md` entry, and
+tag the commit (`vX.Y.Z`). Pre-1.0, minor bumps may include behavioral changes.
+
 ## Environment Variables
 
 - `MOCHI_API_KEY` - Required. Get from https://app.mochi.cards/settings/api

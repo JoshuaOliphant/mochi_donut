@@ -339,6 +339,20 @@ class TestServerConfiguration:
         assert "flashcard" in SERVER_INSTRUCTIONS.lower()
         assert "Matuschak" in SERVER_INSTRUCTIONS
 
+    def test_server_version_is_single_sourced_and_advertised(self):
+        """The server advertises the package version from a single source.
+
+        `__version__` is read from the installed package metadata
+        (pyproject.toml) and passed to FastMCP, so the MCP handshake's
+        serverInfo.version always matches the build.
+        """
+        from importlib.metadata import version as pkg_version
+
+        from mochi_donut import __version__
+
+        assert __version__ == pkg_version("mochi-donut")
+        assert mcp.version == __version__
+
     async def test_tools_are_registered(self):
         """Verify all tools are registered."""
         assert await mcp.get_tool("fetch_url") is not None

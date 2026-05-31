@@ -7,7 +7,6 @@ This package provides an MCP server that helps create high-quality
 flashcards following Andy Matuschak's spaced repetition principles.
 """
 
-from mochi_donut.server import main, mcp
+from mochi_donut.server import __version__, main, mcp
 
-__version__ = "0.3.0"
-__all__ = ["mcp", "main"]
+__all__ = ["__version__", "mcp", "main"]

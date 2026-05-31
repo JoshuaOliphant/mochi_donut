@@ -24,9 +24,14 @@ Or run directly: uv run python -m mochi_donut.server
 """
 
 import os
+from importlib.metadata import version
 
 import httpx
 from fastmcp import FastMCP
+
+# Single source of truth for the version: read it from the installed package
+# metadata (defined in pyproject.toml) so it never drifts from the build.
+__version__ = version("mochi-donut")
 
 # Configuration
 JINA_READER_BASE = "https://r.jina.ai"
@@ -47,7 +52,7 @@ Typical workflow:
 Always prioritize understanding over memorization. Create focused, specific prompts."""
 
 # Initialize the MCP server
-mcp = FastMCP("mochi-donut", instructions=SERVER_INSTRUCTIONS)
+mcp = FastMCP("mochi-donut", instructions=SERVER_INSTRUCTIONS, version=__version__)
 
 
 def _get_mochi_api_key() -> str:
