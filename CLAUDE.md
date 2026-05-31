@@ -72,7 +72,10 @@ The version is defined **once**, in `pyproject.toml`. Both
 MCP handshake) read it from the installed package metadata via
 `importlib.metadata.version("mochi-donut")`, so they never drift. To cut a
 release: bump `version` in `pyproject.toml`, add a `CHANGELOG.md` entry, and
-tag the commit (`vX.Y.Z`). Pre-1.0, minor bumps may include behavioral changes.
+push a `vX.Y.Z` tag. Pushing the tag triggers `.github/workflows/release.yml`,
+which verifies the tag matches the `pyproject.toml` version and publishes a
+GitHub Release with notes pulled from the matching `CHANGELOG.md` section.
+Pre-1.0, minor bumps may include behavioral changes.
 
 ## Environment Variables
 

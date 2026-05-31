@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Needed for `gh release create` to publish a GitHub Release.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Verify tag matches package version
+      run: |
+        version="${GITHUB_REF_NAME#v}"
+        pkg_version="$(grep -m1 '^version' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+        if [ "$version" != "$pkg_version" ]; then
+          echo "::error::Tag ${GITHUB_REF_NAME} (${version}) does not match pyproject.toml version (${pkg_version})."
+          exit 1
+        fi
+        echo "Tag ${GITHUB_REF_NAME} matches package version ${pkg_version}."
+
+    - name: Extract release notes from CHANGELOG
+      id: notes
+      run: |
+        version="${GITHUB_REF_NAME#v}"
+        notes_file="$(mktemp)"
+        # Pull the section for this version out of CHANGELOG.md (everything
+        # between "## [<version>]" and the next "## " heading).
+        awk -v ver="$version" '
+          $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+          capture && /^## / { exit }
+          capture { print }
+        ' CHANGELOG.md > "$notes_file"
+        if [ ! -s "$notes_file" ]; then
+          echo "Release ${GITHUB_REF_NAME}." > "$notes_file"
+        fi
+        echo "file=${notes_file}" >> "$GITHUB_OUTPUT"
+
+    - name: Create GitHub Release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release create "$GITHUB_REF_NAME" \
+          --repo "$GITHUB_REPOSITORY" \
+          --title "$GITHUB_REF_NAME" \
+          --notes-file "${{ steps.notes.outputs.file }}"
