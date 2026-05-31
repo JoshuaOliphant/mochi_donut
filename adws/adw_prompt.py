@@ -38,25 +38,25 @@ Examples:
     ./adws/adw_prompt.py "Debug Mochi API integration" --agent-name debugger
 """
 
+import json
 import os
 import sys
-import json
 from pathlib import Path
+
 import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 # Add the adw_modules directory to the path so we can import agent
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "adw_modules"))
 
 from agent import (
-    prompt_claude_code,
     AgentPromptRequest,
     AgentPromptResponse,
-    prompt_claude_code_with_retry,
     generate_short_id,
+    prompt_claude_code,
+    prompt_claude_code_with_retry,
 )
 
 # Output file name constants
@@ -85,9 +85,7 @@ SUMMARY_JSON = "custom_summary_output.json"
     help="Working directory for the prompt execution (default: current directory)",
 )
 @click.option("--no-retry", is_flag=True, help="Disable automatic retry on failure")
-@click.option(
-    "--agent-name", default="oneoff", help="Agent name for tracking (default: oneoff)"
-)
+@click.option("--agent-name", default="oneoff", help="Agent name for tracking (default: oneoff)")
 def main(
     prompt: str,
     model: str,
@@ -170,9 +168,7 @@ def main(
             console.print(result_panel)
 
             if response.session_id:
-                console.print(
-                    f"\n[bold cyan]Session ID:[/bold cyan] {response.session_id}"
-                )
+                console.print(f"\n[bold cyan]Session ID:[/bold cyan] {response.session_id}")
         else:
             # Error panel
             error_panel = Panel(
@@ -184,9 +180,7 @@ def main(
             console.print(error_panel)
 
             if response.retry_code != "none":
-                console.print(
-                    f"\n[bold yellow]Retry code:[/bold yellow] {response.retry_code}"
-                )
+                console.print(f"\n[bold yellow]Retry code:[/bold yellow] {response.retry_code}")
 
         # Show output file info
         console.print()
@@ -226,15 +220,9 @@ def main(
         json_array_path = os.path.join(output_dir, OUTPUT_JSON)
         final_object_path = os.path.join(output_dir, FINAL_OBJECT_JSON)
 
-        files_table.add_row(
-            "JSONL Stream", output, "Raw streaming output from Claude Code"
-        )
-        files_table.add_row(
-            "JSON Array", json_array_path, "All messages as a JSON array"
-        )
-        files_table.add_row(
-            "Final Object", final_object_path, "Last message entry (final result)"
-        )
+        files_table.add_row("JSONL Stream", output, "Raw streaming output from Claude Code")
+        files_table.add_row("JSON Array", json_array_path, "All messages as a JSON array")
+        files_table.add_row("Final Object", final_object_path, "Last message entry (final result)")
         files_table.add_row(
             "Summary", simple_json_output, "High-level execution summary with metadata"
         )
