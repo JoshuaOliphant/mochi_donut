@@ -169,12 +169,15 @@ class TestListDecksTool:
             "docs": [{"id": "deck-1", "name": "Python"}, {"id": "deck-2", "name": "JavaScript"}]
         }
 
-        respx.get("https://app.mochi.cards/api/decks").mock(
+        # Mochi's router requires the trailing slash: /api/decks/ 200s while
+        # /api/decks 404s even with a valid key.
+        route = respx.get("https://app.mochi.cards/api/decks/").mock(
             return_value=Response(200, json=mock_response)
         )
 
         result = await _list_decks_impl()
 
+        assert route.calls.last.request.url.path == "/api/decks/"
         assert "Python: deck-1" in result
         assert "JavaScript: deck-2" in result
 
@@ -184,7 +187,7 @@ class TestListDecksTool:
         """Test empty deck list."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.get("https://app.mochi.cards/api/decks").mock(
+        respx.get("https://app.mochi.cards/api/decks/").mock(
             return_value=Response(200, json={"docs": []})
         )
 
@@ -210,7 +213,7 @@ class TestCreateCardsTool:
         """Test successful card creation."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.post("https://app.mochi.cards/api/cards").mock(
+        respx.post("https://app.mochi.cards/api/cards/").mock(
             return_value=Response(200, json={"id": "card-123"})
         )
 
@@ -232,7 +235,7 @@ class TestCreateCardsTool:
 
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        route = respx.post("https://app.mochi.cards/api/cards").mock(
+        route = respx.post("https://app.mochi.cards/api/cards/").mock(
             return_value=Response(200, json={"id": "card-123"})
         )
 
@@ -242,6 +245,9 @@ class TestCreateCardsTool:
 
         request = route.calls.last.request
         body = json.loads(request.content)
+
+        # Mochi's router requires the trailing slash on /api/cards/.
+        assert request.url.path == "/api/cards/"
 
         # Tags use Mochi's "manual-tags" key.
         assert body["manual-tags"] == ["python", "basics"]
@@ -272,7 +278,7 @@ class TestCreateCardsTool:
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
         # First card succeeds, second fails
-        route = respx.post("https://app.mochi.cards/api/cards")
+        route = respx.post("https://app.mochi.cards/api/cards/")
         route.side_effect = [
             Response(200, json={"id": "card-1"}),
             Response(400, text="Invalid card"),
@@ -304,7 +310,7 @@ class TestCreateCardsTool:
         """Non-HTTPStatusError exceptions are captured in the error list."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.post("https://app.mochi.cards/api/cards").mock(side_effect=httpx.ConnectError("boom"))
+        respx.post("https://app.mochi.cards/api/cards/").mock(side_effect=httpx.ConnectError("boom"))
 
         result = await _create_cards_impl("deck-1", [{"question": "Q1", "answer": "A1"}])
 
@@ -379,7 +385,7 @@ class TestToolWrappers:
     @pytest.mark.asyncio
     async def test_list_decks_tool_wrapper(self, monkeypatch):
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
-        respx.get("https://app.mochi.cards/api/decks").mock(
+        respx.get("https://app.mochi.cards/api/decks/").mock(
             return_value=Response(200, json={"docs": []})
         )
         assert "No decks found" in await list_decks()
