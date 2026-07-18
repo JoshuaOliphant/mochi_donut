@@ -11,6 +11,29 @@ The version is defined once in `pyproject.toml`; the package and the running
 MCP server (`serverInfo.version`) both read it from the installed package
 metadata, so it never drifts.
 
+## [0.4.0]
+
+### Added
+- **Card management**: `list_cards` (browse/search, optionally scoped to a
+  deck, with `bookmark`-based pagination), `get_card` (full content, deck-id,
+  and tags), `update_card` (partial updates to content, deck, manual tags,
+  `archived?`, and `trashed?` — soft-delete uses an ISO 8601 timestamp, not
+  a boolean).
+- **Deck management**: `create_deck` (with optional `parent-id` nesting) and
+  `update_deck` (partial updates to name, parent, and `archived?`).
+- **Attachments**: `add_attachment` uploads a local image
+  (png/jpg/jpeg/gif/svg/webp) to a card via multipart/form-data, inferring
+  the filename and content-type; reference it in card content with
+  `![](@media/<filename>)`.
+
+## [0.3.1]
+
+### Fixed
+- **Mochi API 404s**: `list_decks` and `create_cards` now request
+  `/api/decks/` and `/api/cards/` with the trailing slash Mochi's router
+  requires. Without it the router returns `404 Not Found` even with a valid
+  API key.
+
 ## [0.3.0]
 
 ### Changed

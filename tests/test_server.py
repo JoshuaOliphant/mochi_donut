@@ -19,18 +19,30 @@ from mochi_donut.server import (
     EXAMPLE_FLASHCARDS,
     MATUSCHAK_PRINCIPLES,
     SERVER_INSTRUCTIONS,
+    _add_attachment_impl,
     _create_cards_impl,
+    _create_deck_impl,
     _fetch_url_impl,
+    _get_card_impl,
+    _list_cards_impl,
     _list_decks_impl,
+    _update_card_impl,
+    _update_deck_impl,
+    add_attachment,
     create_cards,
+    create_deck,
     fetch_url,
     generate_flashcards,
+    get_card,
     get_examples,
     get_principles,
+    list_cards,
     list_decks,
     main,
     mcp,
     review_flashcards,
+    update_card,
+    update_deck,
 )
 
 
@@ -169,12 +181,15 @@ class TestListDecksTool:
             "docs": [{"id": "deck-1", "name": "Python"}, {"id": "deck-2", "name": "JavaScript"}]
         }
 
-        respx.get("https://app.mochi.cards/api/decks").mock(
+        # Mochi's router requires the trailing slash: /api/decks/ 200s while
+        # /api/decks 404s even with a valid key.
+        route = respx.get("https://app.mochi.cards/api/decks/").mock(
             return_value=Response(200, json=mock_response)
         )
 
         result = await _list_decks_impl()
 
+        assert route.calls.last.request.url.path == "/api/decks/"
         assert "Python: deck-1" in result
         assert "JavaScript: deck-2" in result
 
@@ -184,7 +199,7 @@ class TestListDecksTool:
         """Test empty deck list."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.get("https://app.mochi.cards/api/decks").mock(
+        respx.get("https://app.mochi.cards/api/decks/").mock(
             return_value=Response(200, json={"docs": []})
         )
 
@@ -210,7 +225,7 @@ class TestCreateCardsTool:
         """Test successful card creation."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.post("https://app.mochi.cards/api/cards").mock(
+        respx.post("https://app.mochi.cards/api/cards/").mock(
             return_value=Response(200, json={"id": "card-123"})
         )
 
@@ -232,7 +247,7 @@ class TestCreateCardsTool:
 
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        route = respx.post("https://app.mochi.cards/api/cards").mock(
+        route = respx.post("https://app.mochi.cards/api/cards/").mock(
             return_value=Response(200, json={"id": "card-123"})
         )
 
@@ -242,6 +257,9 @@ class TestCreateCardsTool:
 
         request = route.calls.last.request
         body = json.loads(request.content)
+
+        # Mochi's router requires the trailing slash on /api/cards/.
+        assert request.url.path == "/api/cards/"
 
         # Tags use Mochi's "manual-tags" key.
         assert body["manual-tags"] == ["python", "basics"]
@@ -272,7 +290,7 @@ class TestCreateCardsTool:
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
         # First card succeeds, second fails
-        route = respx.post("https://app.mochi.cards/api/cards")
+        route = respx.post("https://app.mochi.cards/api/cards/")
         route.side_effect = [
             Response(200, json={"id": "card-1"}),
             Response(400, text="Invalid card"),
@@ -304,7 +322,9 @@ class TestCreateCardsTool:
         """Non-HTTPStatusError exceptions are captured in the error list."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        respx.post("https://app.mochi.cards/api/cards").mock(side_effect=httpx.ConnectError("boom"))
+        respx.post("https://app.mochi.cards/api/cards/").mock(
+            side_effect=httpx.ConnectError("boom")
+        )
 
         result = await _create_cards_impl("deck-1", [{"question": "Q1", "answer": "A1"}])
 
@@ -324,6 +344,407 @@ class TestCreateCardsTool:
 
         assert "Created 0/7 cards" in result
         assert "...and 2 more errors" in result
+
+
+class TestListCardsTool:
+    """Test the list_cards tool implementation."""
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_cards_success(self, monkeypatch):
+        """Test successful card listing with a bookmark for pagination."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        mock_response = {
+            "docs": [
+                {"id": "card-1", "content": "What is Python?\n---\nA language"},
+                {"id": "card-2", "content": "What is HTTP?\n---\nA protocol"},
+            ],
+            "bookmark": "next-page-token",
+        }
+
+        route = respx.get("https://app.mochi.cards/api/cards/").mock(
+            return_value=Response(200, json=mock_response)
+        )
+
+        result = await _list_cards_impl()
+
+        assert route.calls.last.request.url.path == "/api/cards/"
+        assert "card-1: What is Python?" in result
+        assert "card-2: What is HTTP?" in result
+        assert "next-page-token" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_cards_no_bookmark_in_response(self, monkeypatch):
+        """When the response has no bookmark, no pagination line is appended."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        respx.get("https://app.mochi.cards/api/cards/").mock(
+            return_value=Response(200, json={"docs": [{"id": "card-1", "content": "Q\n---\nA"}]})
+        )
+
+        result = await _list_cards_impl()
+
+        assert "card-1: Q" in result
+        assert "bookmark" not in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_cards_filters_and_pagination_params(self, monkeypatch):
+        """deck_id, limit, and bookmark are sent as query params."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.get("https://app.mochi.cards/api/cards/").mock(
+            return_value=Response(200, json={"docs": []})
+        )
+
+        await _list_cards_impl(deck_id="deck-1", limit=10, bookmark="cursor-1")
+
+        request = route.calls.last.request
+        assert request.url.params["deck-id"] == "deck-1"
+        assert request.url.params["limit"] == "10"
+        assert request.url.params["bookmark"] == "cursor-1"
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_cards_empty(self, monkeypatch):
+        """Test empty card list."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        respx.get("https://app.mochi.cards/api/cards/").mock(
+            return_value=Response(200, json={"docs": []})
+        )
+
+        result = await _list_cards_impl()
+
+        assert "No cards found" in result
+
+    @pytest.mark.asyncio
+    async def test_list_cards_no_api_key(self, monkeypatch):
+        """Test error when API key is not set."""
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+
+        with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+            await _list_cards_impl()
+
+
+class TestGetCardTool:
+    """Test the get_card tool implementation."""
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_card_success(self, monkeypatch):
+        """Test fetching a single card's full content, deck-id, and tags."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        mock_card = {
+            "id": "card-1",
+            "content": "What is Python?\n---\nA language",
+            "deck-id": "deck-1",
+            "tags": ["python"],
+            "manual-tags": ["basics"],
+        }
+
+        route = respx.get("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(200, json=mock_card)
+        )
+
+        result = await _get_card_impl("card-1")
+
+        assert route.calls.last.request.url.path == "/api/cards/card-1"
+        assert "card-1" in result
+        assert "deck-1" in result
+        assert "python" in result
+        assert "basics" in result
+        assert "What is Python?\n---\nA language" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_card_no_tags(self, monkeypatch):
+        """Test a card with no tags at all."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        mock_card = {"id": "card-1", "content": "Q\n---\nA", "deck-id": "deck-1"}
+
+        respx.get("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(200, json=mock_card)
+        )
+
+        result = await _get_card_impl("card-1")
+
+        assert "none" in result
+
+    @pytest.mark.asyncio
+    async def test_get_card_no_api_key(self, monkeypatch):
+        """Test error when API key is not set."""
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+
+        with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+            await _get_card_impl("card-1")
+
+
+class TestUpdateCardTool:
+    """Test the update_card tool implementation."""
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_card_content(self, monkeypatch):
+        """Only provided fields are sent, mapped to Mochi's kebab-case names."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(200, json={"id": "card-1"})
+        )
+
+        result = await _update_card_impl("card-1", content="New content")
+
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert body == {"content": "New content"}
+        assert "Updated card card-1" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_card_all_fields(self, monkeypatch):
+        """All updatable fields map to Mochi's kebab-case field names."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(200, json={"id": "card-1"})
+        )
+
+        await _update_card_impl(
+            "card-1",
+            content="Q\n---\nA",
+            deck_id="deck-2",
+            manual_tags=["python"],
+            archived=True,
+        )
+
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert body["content"] == "Q\n---\nA"
+        assert body["deck-id"] == "deck-2"
+        assert body["manual-tags"] == ["python"]
+        assert body["archived?"] is True
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_card_trashed_true_sends_timestamp(self, monkeypatch):
+        """trashed=True is sent as an ISO 8601 timestamp, not a boolean."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(200, json={"id": "card-1"})
+        )
+
+        await _update_card_impl("card-1", trashed=True)
+
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert isinstance(body["trashed?"], str)
+        assert body["trashed?"].endswith("Z")
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_card_trashed_false_clears_timestamp(self, monkeypatch):
+        """trashed=False untrashes the card by clearing the timestamp field."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(200, json={"id": "card-1"})
+        )
+
+        await _update_card_impl("card-1", trashed=False)
+
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert body["trashed?"] is None
+
+    @pytest.mark.asyncio
+    async def test_update_card_no_fields(self, monkeypatch):
+        """Calling with no fields to update is a no-op that reports back."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        result = await _update_card_impl("card-1")
+
+        assert "No fields provided" in result
+
+    @pytest.mark.asyncio
+    async def test_update_card_no_api_key(self, monkeypatch):
+        """Test error when API key is not set."""
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+
+        with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+            await _update_card_impl("card-1", content="x")
+
+
+class TestCreateDeckTool:
+    """Test the create_deck tool implementation."""
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_create_deck_success(self, monkeypatch):
+        """Test successful deck creation."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/decks/").mock(
+            return_value=Response(200, json={"id": "deck-1", "name": "Python"})
+        )
+
+        result = await _create_deck_impl("Python")
+
+        assert route.calls.last.request.url.path == "/api/decks/"
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert body == {"name": "Python"}
+        assert "Python" in result
+        assert "deck-1" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_create_deck_with_parent(self, monkeypatch):
+        """parent_id maps to Mochi's parent-id field."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/decks/").mock(
+            return_value=Response(200, json={"id": "deck-2", "name": "Subdeck"})
+        )
+
+        await _create_deck_impl("Subdeck", parent_id="deck-1")
+
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert body["parent-id"] == "deck-1"
+
+    @pytest.mark.asyncio
+    async def test_create_deck_no_api_key(self, monkeypatch):
+        """Test error when API key is not set."""
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+
+        with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+            await _create_deck_impl("Python")
+
+
+class TestUpdateDeckTool:
+    """Test the update_deck tool implementation."""
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_deck_fields(self, monkeypatch):
+        """Only provided fields are sent, mapped to Mochi's kebab-case names."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.post("https://app.mochi.cards/api/decks/deck-1").mock(
+            return_value=Response(200, json={"id": "deck-1"})
+        )
+
+        result = await _update_deck_impl(
+            "deck-1", name="Renamed", parent_id="deck-0", archived=True
+        )
+
+        import json
+
+        body = json.loads(route.calls.last.request.content)
+        assert body == {"name": "Renamed", "parent-id": "deck-0", "archived?": True}
+        assert "Updated deck deck-1" in result
+
+    @pytest.mark.asyncio
+    async def test_update_deck_no_fields(self, monkeypatch):
+        """Calling with no fields to update is a no-op that reports back."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        result = await _update_deck_impl("deck-1")
+
+        assert "No fields provided" in result
+
+    @pytest.mark.asyncio
+    async def test_update_deck_no_api_key(self, monkeypatch):
+        """Test error when API key is not set."""
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+
+        with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+            await _update_deck_impl("deck-1", name="x")
+
+
+class TestAddAttachmentTool:
+    """Test the add_attachment tool implementation."""
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_add_attachment_success(self, monkeypatch, tmp_path):
+        """Test successful attachment upload, inferring filename and content-type."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        image_path = tmp_path / "diagram.png"
+        image_path.write_bytes(b"fake-png-bytes")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1/attachments/diagram.png").mock(
+            return_value=Response(200, json={})
+        )
+
+        result = await _add_attachment_impl("card-1", str(image_path))
+
+        assert route.calls.last.request.url.path == ("/api/cards/card-1/attachments/diagram.png")
+        assert "diagram.png" in result
+        assert "@media/diagram.png" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_add_attachment_custom_filename(self, monkeypatch, tmp_path):
+        """An explicit filename overrides the file's basename."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        image_path = tmp_path / "source.jpg"
+        image_path.write_bytes(b"fake-jpg-bytes")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1/attachments/renamed.jpg").mock(
+            return_value=Response(200, json={})
+        )
+
+        result = await _add_attachment_impl("card-1", str(image_path), filename="renamed.jpg")
+
+        assert route.calls.last.request.url.path == ("/api/cards/card-1/attachments/renamed.jpg")
+        assert "renamed.jpg" in result
+
+    @pytest.mark.asyncio
+    async def test_add_attachment_file_not_found(self, monkeypatch, tmp_path):
+        """Test validation error when the file doesn't exist."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        missing_path = tmp_path / "missing.png"
+
+        with pytest.raises(ValueError, match="File not found"):
+            await _add_attachment_impl("card-1", str(missing_path))
+
+    @pytest.mark.asyncio
+    async def test_add_attachment_unsupported_extension(self, monkeypatch, tmp_path):
+        """Test validation error for an unsupported file extension."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        bad_path = tmp_path / "document.pdf"
+        bad_path.write_bytes(b"fake-pdf-bytes")
+
+        with pytest.raises(ValueError, match="Unsupported attachment extension"):
+            await _add_attachment_impl("card-1", str(bad_path))
+
+    @pytest.mark.asyncio
+    async def test_add_attachment_no_api_key(self, monkeypatch, tmp_path):
+        """Test error when API key is not set (validated after file checks)."""
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+
+        image_path = tmp_path / "diagram.png"
+        image_path.write_bytes(b"fake-png-bytes")
+
+        with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+            await _add_attachment_impl("card-1", str(image_path))
 
 
 class TestServerConfiguration:
@@ -358,6 +779,12 @@ class TestServerConfiguration:
         assert await mcp.get_tool("fetch_url") is not None
         assert await mcp.get_tool("list_decks") is not None
         assert await mcp.get_tool("create_cards") is not None
+        assert await mcp.get_tool("list_cards") is not None
+        assert await mcp.get_tool("get_card") is not None
+        assert await mcp.get_tool("update_card") is not None
+        assert await mcp.get_tool("create_deck") is not None
+        assert await mcp.get_tool("update_deck") is not None
+        assert await mcp.get_tool("add_attachment") is not None
 
 
 class TestToolWrappers:
@@ -379,7 +806,7 @@ class TestToolWrappers:
     @pytest.mark.asyncio
     async def test_list_decks_tool_wrapper(self, monkeypatch):
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
-        respx.get("https://app.mochi.cards/api/decks").mock(
+        respx.get("https://app.mochi.cards/api/decks/").mock(
             return_value=Response(200, json={"docs": []})
         )
         assert "No decks found" in await list_decks()
@@ -388,6 +815,52 @@ class TestToolWrappers:
     async def test_create_cards_tool_wrapper(self, monkeypatch):
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
         assert "No cards provided" in await create_cards("deck-1", [])
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_cards_tool_wrapper(self, monkeypatch):
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+        respx.get("https://app.mochi.cards/api/cards/").mock(
+            return_value=Response(200, json={"docs": []})
+        )
+        assert "No cards found" in await list_cards()
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_card_tool_wrapper(self, monkeypatch):
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+        respx.get("https://app.mochi.cards/api/cards/card-1").mock(
+            return_value=Response(
+                200, json={"id": "card-1", "content": "Q\n---\nA", "deck-id": "d"}
+            )
+        )
+        assert "card-1" in await get_card("card-1")
+
+    @pytest.mark.asyncio
+    async def test_update_card_tool_wrapper(self, monkeypatch):
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+        assert "No fields provided" in await update_card("card-1")
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_create_deck_tool_wrapper(self, monkeypatch):
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+        respx.post("https://app.mochi.cards/api/decks/").mock(
+            return_value=Response(200, json={"id": "deck-1", "name": "Python"})
+        )
+        assert "deck-1" in await create_deck("Python")
+
+    @pytest.mark.asyncio
+    async def test_update_deck_tool_wrapper(self, monkeypatch):
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+        assert "No fields provided" in await update_deck("deck-1")
+
+    @pytest.mark.asyncio
+    async def test_add_attachment_tool_wrapper(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+        missing_path = tmp_path / "missing.png"
+        with pytest.raises(ValueError, match="File not found"):
+            await add_attachment("card-1", str(missing_path))
 
 
 class TestEntryPoint:
