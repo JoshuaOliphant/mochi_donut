@@ -15,7 +15,9 @@ src/mochi_donut/
 ```
 
 The server exposes:
-- **Tools**: `fetch_url` (JinaAI Reader), `list_decks`, `create_cards` (Mochi API)
+- **Tools**: `fetch_url` (JinaAI Reader); `list_decks`, `create_cards`,
+  `list_cards`, `get_card`, `update_card`, `create_deck`, `update_deck`,
+  `add_attachment` (Mochi API)
 - **Resources**: `matuschak://principles`, `matuschak://examples`
 - **Prompts**: `generate_flashcards`, `review_flashcards`
 

@@ -7,7 +7,8 @@ A focused MCP server for converting web content into high-quality Mochi flashcar
 following Andy Matuschak's spaced repetition principles.
 
 Components:
-- Tools: fetch_url, list_decks, create_cards
+- Tools: fetch_url, list_decks, create_cards, list_cards, get_card,
+  update_card, create_deck, update_deck, add_attachment
 - Resources: Matuschak's principles, example flashcards
 - Prompts: Flashcard generation workflow
 
@@ -24,7 +25,9 @@ Or run directly: uv run python -m mochi_donut.server
 """
 
 import os
+from datetime import UTC, datetime
 from importlib.metadata import version
+from pathlib import Path
 
 import httpx
 from fastmcp import FastMCP
@@ -37,6 +40,17 @@ __version__ = version("mochi-donut")
 JINA_READER_BASE = "https://r.jina.ai"
 MOCHI_API_BASE = "https://app.mochi.cards/api"
 
+# Maps supported attachment extensions to their MIME content-type, per
+# Mochi's attachment endpoint (https://mochi.cards/docs/api/).
+ATTACHMENT_CONTENT_TYPES = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "svg": "image/svg+xml",
+    "webp": "image/webp",
+}
+
 # Server instructions for the agent
 SERVER_INSTRUCTIONS = """You are a flashcard generation assistant. Your goal is to help users
 convert web content into high-quality Mochi flashcards following Andy Matuschak's principles.
@@ -48,6 +62,11 @@ Typical workflow:
 4. Generate flashcards following those principles
 5. Use list_decks to find the target deck
 6. Use create_cards to save the flashcards to Mochi
+
+You can also manage existing cards and decks: list_cards and get_card to
+browse and inspect, update_card to edit content/tags/deck/archived/trashed
+status, create_deck and update_deck to manage decks, and add_attachment to
+attach an image file to a card.
 
 Always prioritize understanding over memorization. Create focused, specific prompts."""
 
@@ -385,6 +404,256 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
     return result
 
 
+async def _list_cards_impl(
+    deck_id: str | None = None, limit: int = 100, bookmark: str | None = None
+) -> str:
+    """
+    Core implementation for listing Mochi cards.
+
+    Args:
+        deck_id: Only return cards from this deck, if given
+        limit: Maximum number of cards to return per page (1-100)
+        bookmark: Pagination cursor returned by a previous call
+
+    Returns:
+        Formatted list of card IDs and first content line, plus a bookmark
+        for the next page when more results are available
+    """
+    api_key = _get_mochi_api_key()
+
+    params: dict[str, str | int] = {"limit": limit}
+    if deck_id is not None:
+        params["deck-id"] = deck_id
+    if bookmark is not None:
+        params["bookmark"] = bookmark
+
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        # The trailing slash is required: Mochi's router 404s on /api/cards
+        # but resolves /api/cards/ (see https://mochi.cards/docs/api/).
+        response = await client.get(f"{MOCHI_API_BASE}/cards/", params=params)
+        response.raise_for_status()
+
+        data = response.json()
+
+    docs = data.get("docs", [])
+    if not docs:
+        return "No cards found."
+
+    lines = [f"{card['id']}: {card.get('content', '').split(chr(10), 1)[0]}" for card in docs]
+    result = "\n".join(lines)
+
+    next_bookmark = data.get("bookmark")
+    if next_bookmark:
+        result += f"\n\nbookmark: {next_bookmark}"
+
+    return result
+
+
+async def _get_card_impl(card_id: str) -> str:
+    """
+    Core implementation for fetching a single Mochi card.
+
+    Args:
+        card_id: The Mochi card ID
+
+    Returns:
+        The card's deck-id, tags, and full markdown content
+    """
+    api_key = _get_mochi_api_key()
+
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        response = await client.get(f"{MOCHI_API_BASE}/cards/{card_id}")
+        response.raise_for_status()
+
+        card = response.json()
+
+    tags = card.get("tags") or []
+    manual_tags = card.get("manual-tags") or []
+
+    lines = [
+        f"id: {card['id']}",
+        f"deck-id: {card.get('deck-id', '')}",
+        f"tags: {', '.join(tags) if tags else 'none'}",
+        f"manual-tags: {', '.join(manual_tags) if manual_tags else 'none'}",
+        "",
+        card.get("content", ""),
+    ]
+    return "\n".join(lines)
+
+
+async def _update_card_impl(
+    card_id: str,
+    content: str | None = None,
+    deck_id: str | None = None,
+    manual_tags: list[str] | None = None,
+    archived: bool | None = None,
+    trashed: bool | None = None,
+) -> str:
+    """
+    Core implementation for updating a Mochi card.
+
+    Only the provided fields are sent to the API, mapped to Mochi's
+    kebab-case field names.
+
+    Args:
+        card_id: The Mochi card ID
+        content: New markdown content, if changing
+        deck_id: Move the card to this deck, if given
+        manual_tags: Replace the card's manual tags, if given
+        archived: Set the card's archived status, if given
+        trashed: Soft-delete (True) or restore (False) the card, if given.
+            Mochi represents this as a timestamp, not a boolean: True stamps
+            the current time, False clears it.
+
+    Returns:
+        Confirmation message, or a note that nothing was provided to update
+    """
+    api_key = _get_mochi_api_key()
+
+    payload: dict[str, object] = {}
+    if content is not None:
+        payload["content"] = content
+    if deck_id is not None:
+        payload["deck-id"] = deck_id
+    if manual_tags is not None:
+        payload["manual-tags"] = manual_tags
+    if archived is not None:
+        payload["archived?"] = archived
+    if trashed is not None:
+        # Mochi's "trashed?" field is an ISO 8601 timestamp (soft delete),
+        # not a boolean: stamp "now" to trash, send null to untrash.
+        payload["trashed?"] = (
+            datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z" if trashed else None
+        )
+
+    if not payload:
+        return "No fields provided to update."
+
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        response = await client.post(f"{MOCHI_API_BASE}/cards/{card_id}", json=payload)
+        response.raise_for_status()
+
+    return f"Updated card {card_id}."
+
+
+async def _create_deck_impl(name: str, parent_id: str | None = None) -> str:
+    """
+    Core implementation for creating a Mochi deck.
+
+    Args:
+        name: The deck name
+        parent_id: Nest the new deck under this parent deck, if given
+
+    Returns:
+        Confirmation message with the created deck's name and ID
+    """
+    api_key = _get_mochi_api_key()
+
+    payload: dict[str, str] = {"name": name}
+    if parent_id is not None:
+        payload["parent-id"] = parent_id
+
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        # The trailing slash is required: Mochi's router 404s on /api/decks
+        # but resolves /api/decks/ (see https://mochi.cards/docs/api/).
+        response = await client.post(f"{MOCHI_API_BASE}/decks/", json=payload)
+        response.raise_for_status()
+
+        deck = response.json()
+
+    return f"Created deck '{deck['name']}': {deck['id']}"
+
+
+async def _update_deck_impl(
+    deck_id: str,
+    name: str | None = None,
+    parent_id: str | None = None,
+    archived: bool | None = None,
+) -> str:
+    """
+    Core implementation for updating a Mochi deck.
+
+    Only the provided fields are sent to the API, mapped to Mochi's
+    kebab-case field names.
+
+    Args:
+        deck_id: The Mochi deck ID
+        name: New deck name, if changing
+        parent_id: Move the deck under this parent deck, if given
+        archived: Set the deck's archived status, if given
+
+    Returns:
+        Confirmation message, or a note that nothing was provided to update
+    """
+    api_key = _get_mochi_api_key()
+
+    payload: dict[str, str | bool] = {}
+    if name is not None:
+        payload["name"] = name
+    if parent_id is not None:
+        payload["parent-id"] = parent_id
+    if archived is not None:
+        payload["archived?"] = archived
+
+    if not payload:
+        return "No fields provided to update."
+
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        response = await client.post(f"{MOCHI_API_BASE}/decks/{deck_id}", json=payload)
+        response.raise_for_status()
+
+    return f"Updated deck {deck_id}."
+
+
+async def _add_attachment_impl(card_id: str, file_path: str, filename: str | None = None) -> str:
+    """
+    Core implementation for attaching a file to a Mochi card.
+
+    Args:
+        card_id: The Mochi card ID
+        file_path: Path to the local file to upload
+        filename: Name to store the attachment as (defaults to the file's
+            basename); must end in a supported image extension
+
+    Returns:
+        Confirmation message reminding how to reference the attachment
+        from card content
+    """
+    path = Path(file_path)
+    if not path.is_file():
+        raise ValueError(f"File not found: {file_path}")
+
+    resolved_filename = filename or path.name
+    extension = resolved_filename.rsplit(".", 1)[-1].lower() if "." in resolved_filename else ""
+    content_type = ATTACHMENT_CONTENT_TYPES.get(extension)
+    if content_type is None:
+        raise ValueError(
+            f"Unsupported attachment extension '{extension}'. Supported: "
+            f"{', '.join(sorted(ATTACHMENT_CONTENT_TYPES))}"
+        )
+
+    api_key = _get_mochi_api_key()
+    file_bytes = path.read_bytes()
+
+    # Mochi uses HTTP Basic auth: API key as username, blank password.
+    async with httpx.AsyncClient(auth=(api_key, "")) as client:
+        response = await client.post(
+            f"{MOCHI_API_BASE}/cards/{card_id}/attachments/{resolved_filename}",
+            files={"file": (resolved_filename, file_bytes, content_type)},
+        )
+        response.raise_for_status()
+
+    return (
+        f"Attached {resolved_filename} to card {card_id}. "
+        f"Reference it in card content as ![](@media/{resolved_filename})"
+    )
+
+
 # =============================================================================
 # TOOLS - MCP tool wrappers (delegate to core functions)
 # =============================================================================
@@ -449,6 +718,125 @@ async def create_cards(deck_id: str, cards: list[dict]) -> str:
         )
     """
     return await _create_cards_impl(deck_id, cards)
+
+
+@mcp.tool
+async def list_cards(
+    deck_id: str | None = None, limit: int = 100, bookmark: str | None = None
+) -> str:
+    """
+    List Mochi cards, optionally scoped to a deck.
+
+    Use this to browse or search existing cards before editing them. Results
+    are paginated: pass the returned bookmark back in to fetch the next page.
+
+    Args:
+        deck_id: Only return cards from this deck, if given
+        limit: Maximum number of cards to return per page (1-100, default 100)
+        bookmark: Pagination cursor returned by a previous call
+
+    Returns:
+        Formatted list of card IDs and their first content line, plus a
+        bookmark for the next page when more results are available
+    """
+    return await _list_cards_impl(deck_id, limit, bookmark)
+
+
+@mcp.tool
+async def get_card(card_id: str) -> str:
+    """
+    Fetch a single Mochi card's full content, deck, and tags.
+
+    Args:
+        card_id: The Mochi card ID (use list_cards to find this)
+
+    Returns:
+        The card's deck-id, tags, and full markdown content
+    """
+    return await _get_card_impl(card_id)
+
+
+@mcp.tool
+async def update_card(
+    card_id: str,
+    content: str | None = None,
+    deck_id: str | None = None,
+    manual_tags: list[str] | None = None,
+    archived: bool | None = None,
+    trashed: bool | None = None,
+) -> str:
+    """
+    Update a Mochi card. Only provided fields are changed.
+
+    Args:
+        card_id: The Mochi card ID (use list_cards to find this)
+        content: New markdown content, if changing
+        deck_id: Move the card to this deck, if given
+        manual_tags: Replace the card's manual tags, if given
+        archived: Set the card's archived status, if given
+        trashed: Soft-delete (True) or restore (False) the card, if given
+
+    Returns:
+        Confirmation message, or a note that nothing was provided to update
+    """
+    return await _update_card_impl(card_id, content, deck_id, manual_tags, archived, trashed)
+
+
+@mcp.tool
+async def create_deck(name: str, parent_id: str | None = None) -> str:
+    """
+    Create a new Mochi deck.
+
+    Args:
+        name: The deck name
+        parent_id: Nest the new deck under this parent deck, if given
+
+    Returns:
+        Confirmation message with the created deck's name and ID
+    """
+    return await _create_deck_impl(name, parent_id)
+
+
+@mcp.tool
+async def update_deck(
+    deck_id: str,
+    name: str | None = None,
+    parent_id: str | None = None,
+    archived: bool | None = None,
+) -> str:
+    """
+    Update a Mochi deck. Only provided fields are changed.
+
+    Args:
+        deck_id: The Mochi deck ID (use list_decks to find this)
+        name: New deck name, if changing
+        parent_id: Move the deck under this parent deck, if given
+        archived: Set the deck's archived status, if given
+
+    Returns:
+        Confirmation message, or a note that nothing was provided to update
+    """
+    return await _update_deck_impl(deck_id, name, parent_id, archived)
+
+
+@mcp.tool
+async def add_attachment(card_id: str, file_path: str, filename: str | None = None) -> str:
+    """
+    Attach a local image file to a Mochi card.
+
+    Supported extensions: png, jpg, jpeg, gif, svg, webp.
+
+    Args:
+        card_id: The Mochi card ID to attach the file to
+        file_path: Path to the local file to upload
+        filename: Name to store the attachment as (defaults to the file's
+            basename)
+
+    Returns:
+        Confirmation message reminding how to reference the attachment
+        from card content (![](@media/<filename>))
+    """
+    return await _add_attachment_impl(card_id, file_path, filename)
 
 
 # =============================================================================

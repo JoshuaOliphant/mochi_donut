@@ -7,6 +7,12 @@ An MCP server that converts web content into high-quality Mochi flashcards follo
 - **fetch_url** - Extract clean markdown from any URL via JinaAI Reader
 - **list_decks** - List your Mochi decks
 - **create_cards** - Create flashcards in Mochi (single or batch)
+- **list_cards** - Browse or search existing cards, optionally scoped to a deck
+- **get_card** - Fetch a single card's full content, deck, and tags
+- **update_card** - Edit a card's content, deck, tags, archived, or trashed status
+- **create_deck** - Create a new deck, optionally nested under a parent
+- **update_deck** - Rename, re-nest, or archive a deck
+- **add_attachment** - Attach a local image file to a card
 - Built-in resources with Matuschak's flashcard writing principles
 - Prompt templates for generating and reviewing flashcards
 
