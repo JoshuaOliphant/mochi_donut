@@ -11,6 +11,14 @@ The version is defined once in `pyproject.toml`; the package and the running
 MCP server (`serverInfo.version`) both read it from the installed package
 metadata, so it never drifts.
 
+## [0.3.1]
+
+### Fixed
+- **Mochi API 404s**: `list_decks` and `create_cards` now request
+  `/api/decks/` and `/api/cards/` with the trailing slash Mochi's router
+  requires. Without it the router returns `404 Not Found` even with a valid
+  API key.
+
 ## [0.3.0]
 
 ### Changed

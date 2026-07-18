@@ -319,7 +319,9 @@ async def _list_decks_impl() -> str:
 
     # Mochi uses HTTP Basic auth: API key as username, blank password.
     async with httpx.AsyncClient(auth=(api_key, "")) as client:
-        response = await client.get(f"{MOCHI_API_BASE}/decks")
+        # The trailing slash is required: Mochi's router 404s on /api/decks
+        # but resolves /api/decks/ (see https://mochi.cards/docs/api/).
+        response = await client.get(f"{MOCHI_API_BASE}/decks/")
         response.raise_for_status()
 
         decks = response.json()
@@ -357,8 +359,10 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
                 # Mochi renders a two-sided card from a single markdown `content`
                 # field, with the "---" separator dividing front (question) from
                 # back (answer). This works for any deck without needing a template.
+                # The trailing slash is required: Mochi's router 404s on
+                # /api/cards but resolves /api/cards/.
                 response = await client.post(
-                    f"{MOCHI_API_BASE}/cards",
+                    f"{MOCHI_API_BASE}/cards/",
                     json={
                         "deck-id": deck_id,
                         "content": f"{card['question']}\n---\n{card['answer']}",
