@@ -71,3 +71,7 @@ cython_debug/
 
 # uv
 .python-version
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
