@@ -735,6 +735,89 @@ class TestAddAttachmentTool:
         with pytest.raises(ValueError, match="Unsupported attachment extension"):
             await _add_attachment_impl("card-1", str(bad_path))
 
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_add_attachment_sanitizes_stem(self, monkeypatch, tmp_path):
+        """Non-alphanumerics are stripped from the stem before upload.
+
+        Mochi validates the attachment filename stem against
+        [0-9a-zA-Z]{4,16} and 422s on anything else, so rpc-flow.png
+        must be uploaded as rpcflow.png.
+        """
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        image_path = tmp_path / "rpc-flow.png"
+        image_path.write_bytes(b"fake-png-bytes")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1/attachments/rpcflow.png").mock(
+            return_value=Response(200, json={})
+        )
+
+        result = await _add_attachment_impl("card-1", str(image_path))
+
+        assert route.calls.last.request.url.path == ("/api/cards/card-1/attachments/rpcflow.png")
+        assert "@media/rpcflow.png" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_add_attachment_clamps_long_stem(self, monkeypatch, tmp_path):
+        """Stems longer than Mochi's 16-char maximum are truncated."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        image_path = tmp_path / "architecture_overview_diagram.png"
+        image_path.write_bytes(b"fake-png-bytes")
+
+        route = respx.post(
+            "https://app.mochi.cards/api/cards/card-1/attachments/architectureover.png"
+        ).mock(return_value=Response(200, json={}))
+
+        result = await _add_attachment_impl("card-1", str(image_path))
+
+        assert route.calls.last.request.url.path == (
+            "/api/cards/card-1/attachments/architectureover.png"
+        )
+        assert "@media/architectureover.png" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_add_attachment_pads_short_stem(self, monkeypatch, tmp_path):
+        """Stems shorter than Mochi's 4-char minimum are zero-padded."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        image_path = tmp_path / "a-b.png"
+        image_path.write_bytes(b"fake-png-bytes")
+
+        route = respx.post("https://app.mochi.cards/api/cards/card-1/attachments/ab00.png").mock(
+            return_value=Response(200, json={})
+        )
+
+        result = await _add_attachment_impl("card-1", str(image_path))
+
+        assert route.calls.last.request.url.path == ("/api/cards/card-1/attachments/ab00.png")
+        assert "@media/ab00.png" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_add_attachment_sanitizes_explicit_filename(self, monkeypatch, tmp_path):
+        """An explicit filename is sanitized to Mochi's contract too."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        image_path = tmp_path / "source.jpg"
+        image_path.write_bytes(b"fake-jpg-bytes")
+
+        route = respx.post(
+            "https://app.mochi.cards/api/cards/card-1/attachments/mydiagramv2.jpg"
+        ).mock(return_value=Response(200, json={}))
+
+        result = await _add_attachment_impl(
+            "card-1", str(image_path), filename="my_diagram-v2.jpg"
+        )
+
+        assert route.calls.last.request.url.path == (
+            "/api/cards/card-1/attachments/mydiagramv2.jpg"
+        )
+        assert "@media/mydiagramv2.jpg" in result
+
     @pytest.mark.asyncio
     async def test_add_attachment_no_api_key(self, monkeypatch, tmp_path):
         """Test error when API key is not set (validated after file checks)."""
@@ -866,13 +949,27 @@ class TestToolWrappers:
 class TestEntryPoint:
     """Cover main() and the __main__ guard."""
 
-    def test_main_invokes_mcp_run(self):
+    def test_main_invokes_mcp_run(self, monkeypatch):
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
         with patch("mochi_donut.server.mcp.run") as run_mock:
             main()
         run_mock.assert_called_once_with()
 
-    def test_module_run_as_main(self):
+    def test_main_raises_without_api_key(self, monkeypatch):
+        """Startup fails loudly when MOCHI_API_KEY is missing.
+
+        Booting without a key used to succeed and then fail confusingly on
+        every API call; main() must refuse to start instead.
+        """
+        monkeypatch.delenv("MOCHI_API_KEY", raising=False)
+        with patch("mochi_donut.server.mcp.run") as run_mock:
+            with pytest.raises(ValueError, match="MOCHI_API_KEY"):
+                main()
+        run_mock.assert_not_called()
+
+    def test_module_run_as_main(self, monkeypatch):
         """Executing the module as __main__ triggers main()."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
         # runpy re-executes the source, creating a fresh FastMCP instance,
         # so patch run() on the class to intercept any instance.
         from fastmcp import FastMCP

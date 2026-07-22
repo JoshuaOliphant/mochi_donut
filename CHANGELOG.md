@@ -11,6 +11,21 @@ The version is defined once in `pyproject.toml`; the package and the running
 MCP server (`serverInfo.version`) both read it from the installed package
 metadata, so it never drifts.
 
+## [0.5.0]
+
+### Fixed
+- **`add_attachment` filename sanitization**: Mochi validates the attachment
+  filename stem against `[0-9a-zA-Z]{4,16}` and returns an opaque 422 for
+  anything else (`rpc-flow.png` failed; `rpcflow.png` worked). The stem is
+  now sanitized before upload — non-alphanumerics stripped, truncated to
+  16 characters, zero-padded to the 4-character minimum — and the
+  confirmation message reports the final stored name.
+
+### Changed
+- **Fail fast on missing `MOCHI_API_KEY`**: the server now raises at startup
+  when the key is unset instead of booting cleanly and failing confusingly
+  on every API call.
+
 ## [0.4.0]
 
 ### Added
