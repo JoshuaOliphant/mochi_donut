@@ -25,6 +25,7 @@ Or run directly: uv run python -m mochi_donut.server
 """
 
 import os
+import re
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
@@ -610,6 +611,19 @@ async def _update_deck_impl(
     return f"Updated deck {deck_id}."
 
 
+def _sanitize_attachment_stem(stem: str) -> str:
+    """
+    Reduce a filename stem to Mochi's required [0-9a-zA-Z]{4,16} form.
+
+    Mochi rejects attachment filenames whose stem contains anything but
+    alphanumerics or falls outside 4-16 characters, returning an opaque
+    422. Strip the invalid characters, truncate to 16, and zero-pad up
+    to the 4-character minimum.
+    """
+    sanitized = re.sub(r"[^0-9a-zA-Z]", "", stem)[:16]
+    return sanitized.ljust(4, "0")
+
+
 async def _add_attachment_impl(card_id: str, file_path: str, filename: str | None = None) -> str:
     """
     Core implementation for attaching a file to a Mochi card.
@@ -618,7 +632,8 @@ async def _add_attachment_impl(card_id: str, file_path: str, filename: str | Non
         card_id: The Mochi card ID
         file_path: Path to the local file to upload
         filename: Name to store the attachment as (defaults to the file's
-            basename); must end in a supported image extension
+            basename); must end in a supported image extension. The stem is
+            sanitized to Mochi's [0-9a-zA-Z]{4,16} contract before upload.
 
     Returns:
         Confirmation message reminding how to reference the attachment
@@ -636,6 +651,9 @@ async def _add_attachment_impl(card_id: str, file_path: str, filename: str | Non
             f"Unsupported attachment extension '{extension}'. Supported: "
             f"{', '.join(sorted(ATTACHMENT_CONTENT_TYPES))}"
         )
+
+    stem = resolved_filename.rsplit(".", 1)[0]
+    resolved_filename = f"{_sanitize_attachment_stem(stem)}.{extension}"
 
     api_key = _get_mochi_api_key()
     file_bytes = path.read_bytes()
@@ -826,6 +844,11 @@ async def add_attachment(card_id: str, file_path: str, filename: str | None = No
 
     Supported extensions: png, jpg, jpeg, gif, svg, webp.
 
+    Mochi requires the filename stem to match [0-9a-zA-Z]{4,16}, so the
+    stem is sanitized before upload (non-alphanumerics stripped, truncated
+    to 16 chars, zero-padded to 4). The confirmation message reports the
+    final stored name to reference from card content.
+
     Args:
         card_id: The Mochi card ID to attach the file to
         file_path: Path to the local file to upload
@@ -846,6 +869,9 @@ async def add_attachment(card_id: str, file_path: str, filename: str | None = No
 
 def main():
     """Run the MCP server."""
+    # Validate configuration at startup: booting without a key would let
+    # the server start cleanly and then fail confusingly on every API call.
+    _get_mochi_api_key()
     mcp.run()
 
 

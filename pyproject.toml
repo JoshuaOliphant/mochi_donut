@@ -1,6 +1,6 @@
 [project]
 name = "mochi-donut"
-version = "0.4.0"
+version = "0.5.0"
 description = "MCP server for converting web content into Mochi flashcards"
 readme = "README.md"
 authors = [
