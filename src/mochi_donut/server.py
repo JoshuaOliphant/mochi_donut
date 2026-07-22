@@ -868,7 +868,7 @@ async def add_attachment(card_id: str, file_path: str, filename: str | None = No
 
 
 def main():
-    """Run the MCP server, failing fast if MOCHI_API_KEY is not configured."""
+    """Run the MCP server."""
     # Validate configuration at startup: booting without a key would let
     # the server start cleanly and then fail confusingly on every API call.
     _get_mochi_api_key()
