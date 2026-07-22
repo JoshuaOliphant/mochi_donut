@@ -809,9 +809,7 @@ class TestAddAttachmentTool:
             "https://app.mochi.cards/api/cards/card-1/attachments/mydiagramv2.jpg"
         ).mock(return_value=Response(200, json={}))
 
-        result = await _add_attachment_impl(
-            "card-1", str(image_path), filename="my_diagram-v2.jpg"
-        )
+        result = await _add_attachment_impl("card-1", str(image_path), filename="my_diagram-v2.jpg")
 
         assert route.calls.last.request.url.path == (
             "/api/cards/card-1/attachments/mydiagramv2.jpg"
