@@ -207,6 +207,56 @@ class TestListDecksTool:
 
         assert "No decks found" in result
 
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_follows_bookmark_to_the_last_page(self, monkeypatch):
+        """Every deck is returned, not just the first page."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.get("https://app.mochi.cards/api/decks/")
+        route.side_effect = [
+            Response(
+                200,
+                json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "page-2"},
+            ),
+            Response(
+                200,
+                json={
+                    "docs": [
+                        {"id": "deck-2", "name": "JavaScript"},
+                        {"id": "deck-3", "name": "Rust"},
+                    ]
+                },
+            ),
+        ]
+
+        result = await _list_decks_impl()
+
+        assert result == "Python: deck-1\nJavaScript: deck-2\nRust: deck-3"
+        assert len(route.calls) == 2
+        assert "bookmark" not in route.calls[0].request.url.params
+        assert route.calls[1].request.url.params["bookmark"] == "page-2"
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_stops_when_bookmark_stops_advancing(self, monkeypatch):
+        """A cursor that keeps echoing itself terminates instead of looping."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.get("https://app.mochi.cards/api/decks/")
+        route.side_effect = [
+            Response(200, json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "same"}),
+            Response(
+                200,
+                json={"docs": [{"id": "deck-2", "name": "JavaScript"}], "bookmark": "same"},
+            ),
+        ]
+
+        result = await _list_decks_impl()
+
+        assert result == "Python: deck-1\nJavaScript: deck-2"
+        assert len(route.calls) == 2
+
     @pytest.mark.asyncio
     async def test_list_decks_no_api_key(self, monkeypatch):
         """Test error when API key is not set."""
