@@ -79,27 +79,42 @@ which verifies the tag matches the `pyproject.toml` version and publishes a
 GitHub Release with notes pulled from the matching `CHANGELOG.md` section.
 Pre-1.0, minor bumps may include behavioral changes.
 
-## Issue Tracking (beads)
+## Issue Tracking (GitHub Issues)
 
-This project uses **bd (beads)** for ALL issue tracking. Do **not** create
-markdown TODO lists or use external trackers. Pass `--json` for programmatic
-use. Commit `.beads/issues.jsonl` together with the related code so issue
-state and code state stay in sync (bd auto-exports to JSONL with a 5s
-debounce; no manual export/import needed).
+This project uses **GitHub Issues** for ALL issue tracking, via the `gh` CLI.
+Do **not** create markdown TODO lists or a local tracker. Use `--json` with a
+`--jq` filter when the output is going to be parsed rather than read.
 
 ```bash
-bd ready --json                                   # unblocked work
-bd create "Title" -t bug|feature|task -p 0-4 --json
-bd create "Found bug" -p 1 --deps discovered-from:<parent-id> --json
-bd update <id> --status in_progress --json        # claim
-bd close <id> --reason "Done" --json              # complete
+gh issue list --state open --json number,title,labels          # open work
+gh issue create --title "Title" --body "..." --label bug
+gh issue view <number> --comments                              # read one
+gh issue edit <number> --add-label ready-for-agent
+gh issue comment <number> --body "..."
+gh issue close <number> --comment "Done"
 ```
 
-- **Types**: `bug`, `feature`, `task`, `epic`, `chore`
-- **Priorities**: `0` critical, `1` high, `2` medium (default), `3` low,
-  `4` backlog
-- Workflow: `bd ready` → claim → implement/test → link any discovered work
-  with `discovered-from` → `bd close`.
+- **Kind** is expressed with labels (`bug`, `enhancement`, `documentation`),
+  not a separate type field.
+- **Triage state** uses the five labels in `docs/agents/triage-labels.md`.
+- Link work back to its issue from the commit or PR body (`Closes #<n>`) so
+  issue state and code state stay in sync.
+- Discovered work gets its own issue that references the parent (`Found while
+  working on #<n>`).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `JoshuaOliphant/mochi_donut`, driven by the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles, each label string equal to its name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ## Environment Variables
 
