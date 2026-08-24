@@ -41,8 +41,12 @@ __version__ = version("mochi-donut")
 JINA_READER_BASE = "https://r.jina.ai"
 MOCHI_API_BASE = "https://app.mochi.cards/api"
 
-# Maps supported attachment extensions to their MIME content-type, per
-# Mochi's attachment endpoint (https://mochi.cards/docs/api/).
+# Bounds the /decks/ pagination walk so a cursor that never resolves fails
+# loudly instead of hanging the tool call.
+MAX_DECK_PAGES = 100
+
+# Attachment types this server accepts. Mochi itself takes more than these
+# (its own docs example uploads an mp3); the narrowing is ours.
 ATTACHMENT_CONTENT_TYPES = {
     "png": "image/png",
     "jpg": "image/jpeg",
@@ -332,21 +336,54 @@ async def _list_decks_impl() -> str:
     """
     Core implementation for listing Mochi decks.
 
+    Returns every deck, following Mochi's bookmark cursor across pages.
+
     Returns:
         Formatted list of deck names and IDs
     """
     api_key = _get_mochi_api_key()
 
+    lines: list[str] = []
+    seen: set[str] = set()
+    bookmark: str | None = None
+
     # Mochi uses HTTP Basic auth: API key as username, blank password.
     async with httpx.AsyncClient(auth=(api_key, "")) as client:
-        # The trailing slash is required: Mochi's router 404s on /api/decks
-        # but resolves /api/decks/ (see https://mochi.cards/docs/api/).
-        response = await client.get(f"{MOCHI_API_BASE}/decks/")
-        response.raise_for_status()
+        for _ in range(MAX_DECK_PAGES):
+            params = {"bookmark": bookmark} if bookmark is not None else {}
+            # Mochi's router 404s without the trailing slash (observed 2026-07-17
+            # in 5040ab5; their docs' own examples omit it and are wrong).
+            response = await client.get(f"{MOCHI_API_BASE}/decks/", params=params)
+            response.raise_for_status()
 
-        decks = response.json()
-        lines = [f"{deck['name']}: {deck['id']}" for deck in decks.get("docs", [])]
-        return "\n".join(lines) if lines else "No decks found. Create one at mochi.cards first."
+            page = response.json()
+            if "docs" not in page:
+                raise RuntimeError(
+                    f"Mochi returned {response.status_code} for /decks/ with no 'docs' "
+                    f"field, so the API contract may have changed. "
+                    f"Body: {response.text[:500]}"
+                )
+
+            fresh = [deck for deck in page["docs"] if deck["id"] not in seen]
+            seen.update(deck["id"] for deck in fresh)
+            lines.extend(f"{deck['name']}: {deck['id']}" for deck in fresh)
+
+            # Mochi: "Not every request that returns a bookmark has additional
+            # pages", so the cursor alone cannot say when to stop. A page that
+            # carries no deck we have not already seen ends the walk, which also
+            # keeps a stalled or cycling cursor from repeating decks forever.
+            next_bookmark = page.get("bookmark")
+            if not fresh or not next_bookmark:
+                break
+            bookmark = next_bookmark
+        else:
+            raise RuntimeError(
+                f"Gave up after {MAX_DECK_PAGES} pages of /decks/ without reaching the "
+                f"end of Mochi's bookmark cursor, so the deck list would be incomplete "
+                f"({len(lines)} decks collected)."
+            )
+
+    return "\n".join(lines) if lines else "No decks found. Create one at mochi.cards first."
 
 
 async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
@@ -379,8 +416,7 @@ async def _create_cards_impl(deck_id: str, cards: list[dict]) -> str:
                 # Mochi renders a two-sided card from a single markdown `content`
                 # field, with the "---" separator dividing front (question) from
                 # back (answer). This works for any deck without needing a template.
-                # The trailing slash is required: Mochi's router 404s on
-                # /api/cards but resolves /api/cards/.
+                # Mochi's router 404s without the trailing slash.
                 response = await client.post(
                     f"{MOCHI_API_BASE}/cards/",
                     json={
@@ -430,8 +466,7 @@ async def _list_cards_impl(
 
     # Mochi uses HTTP Basic auth: API key as username, blank password.
     async with httpx.AsyncClient(auth=(api_key, "")) as client:
-        # The trailing slash is required: Mochi's router 404s on /api/cards
-        # but resolves /api/cards/ (see https://mochi.cards/docs/api/).
+        # Mochi's router 404s without the trailing slash.
         response = await client.get(f"{MOCHI_API_BASE}/cards/", params=params)
         response.raise_for_status()
 
@@ -559,8 +594,7 @@ async def _create_deck_impl(name: str, parent_id: str | None = None) -> str:
 
     # Mochi uses HTTP Basic auth: API key as username, blank password.
     async with httpx.AsyncClient(auth=(api_key, "")) as client:
-        # The trailing slash is required: Mochi's router 404s on /api/decks
-        # but resolves /api/decks/ (see https://mochi.cards/docs/api/).
+        # Mochi's router 404s without the trailing slash.
         response = await client.post(f"{MOCHI_API_BASE}/decks/", json=payload)
         response.raise_for_status()
 
@@ -701,7 +735,8 @@ async def list_decks() -> str:
     List all available Mochi decks with their IDs.
 
     Use this to find the deck_id before creating cards.
-    Returns deck names and IDs in a compact format.
+    Returns deck names and IDs in a compact format. The list is complete;
+    there is no pagination for the caller to handle.
 
     Returns:
         Formatted list of deck names and their IDs
