@@ -52,6 +52,7 @@ dev = [
     "mypy>=1.11.0",
     "ty>=0.0.1",
     "bandit>=1.7.0",
+    "pytest-timeout>=2.4.0",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -18,6 +18,7 @@ from httpx import Response
 from mochi_donut.server import (
     EXAMPLE_FLASHCARDS,
     MATUSCHAK_PRINCIPLES,
+    MAX_DECK_PAGES,
     SERVER_INSTRUCTIONS,
     _add_attachment_impl,
     _create_cards_impl,
@@ -190,6 +191,7 @@ class TestListDecksTool:
         result = await _list_decks_impl()
 
         assert route.calls.last.request.url.path == "/api/decks/"
+        assert len(route.calls) == 1
         assert "Python: deck-1" in result
         assert "JavaScript: deck-2" in result
 
@@ -239,23 +241,107 @@ class TestListDecksTool:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_list_decks_stops_when_bookmark_stops_advancing(self, monkeypatch):
-        """A cursor that keeps echoing itself terminates instead of looping."""
+    async def test_list_decks_stalled_cursor_does_not_repeat_decks(self, monkeypatch):
+        """A server that ignores the cursor re-serves page 1; decks appear once."""
         monkeypatch.setenv("MOCHI_API_KEY", "test-key")
 
-        route = respx.get("https://app.mochi.cards/api/decks/")
-        route.side_effect = [
-            Response(200, json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "same"}),
-            Response(
-                200,
-                json={"docs": [{"id": "deck-2", "name": "JavaScript"}], "bookmark": "same"},
-            ),
-        ]
+        page = {
+            "docs": [{"id": "deck-1", "name": "Python"}, {"id": "deck-2", "name": "JavaScript"}],
+            "bookmark": "stuck",
+        }
+        route = respx.get("https://app.mochi.cards/api/decks/").mock(
+            return_value=Response(200, json=page)
+        )
 
         result = await _list_decks_impl()
 
         assert result == "Python: deck-1\nJavaScript: deck-2"
         assert len(route.calls) == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_cycling_cursor_terminates(self, monkeypatch):
+        """A cursor alternating between two values must not loop forever."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.get("https://app.mochi.cards/api/decks/")
+        route.side_effect = [
+            Response(200, json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "A"}),
+            Response(200, json={"docs": [{"id": "deck-2", "name": "JavaScript"}], "bookmark": "B"}),
+            Response(200, json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "A"}),
+        ]
+
+        result = await _list_decks_impl()
+
+        assert result == "Python: deck-1\nJavaScript: deck-2"
+        assert len(route.calls) == 3
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_ends_on_empty_final_page(self, monkeypatch):
+        """The walk ends on an empty terminal page without losing earlier decks."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.get("https://app.mochi.cards/api/decks/")
+        route.side_effect = [
+            Response(200, json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "p2"}),
+            Response(200, json={"docs": [], "bookmark": "p3"}),
+        ]
+
+        result = await _list_decks_impl()
+
+        assert result == "Python: deck-1"
+        assert len(route.calls) == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_propagates_error_from_later_page(self, monkeypatch):
+        """A failure mid-walk raises instead of returning the decks collected so far."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        route = respx.get("https://app.mochi.cards/api/decks/")
+        route.side_effect = [
+            Response(200, json={"docs": [{"id": "deck-1", "name": "Python"}], "bookmark": "p2"}),
+            Response(500, text="boom"),
+        ]
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await _list_decks_impl()
+
+        assert len(route.calls) == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_rejects_response_without_docs(self, monkeypatch):
+        """A 200 with no docs field is a contract break, not an empty account."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        respx.get("https://app.mochi.cards/api/decks/").mock(
+            return_value=Response(200, json={"error": "unexpected"})
+        )
+
+        with pytest.raises(RuntimeError, match="no 'docs' field"):
+            await _list_decks_impl()
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_list_decks_gives_up_at_the_page_cap(self, monkeypatch):
+        """An endless supply of fresh pages fails loudly rather than hanging."""
+        monkeypatch.setenv("MOCHI_API_KEY", "test-key")
+
+        def endless(request):
+            n = len(route.calls)
+            return Response(
+                200,
+                json={"docs": [{"id": f"deck-{n}", "name": f"Deck{n}"}], "bookmark": f"p{n}"},
+            )
+
+        route = respx.get("https://app.mochi.cards/api/decks/").mock(side_effect=endless)
+
+        with pytest.raises(RuntimeError, match="Gave up after 100 pages"):
+            await _list_decks_impl()
+
+        assert len(route.calls) == MAX_DECK_PAGES
 
     @pytest.mark.asyncio
     async def test_list_decks_no_api_key(self, monkeypatch):
