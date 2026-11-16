@@ -22,7 +22,7 @@ metadata, so it never drifts.
   2026.10.23.
 
 ### Changed
-- **MCP SDK 2.x**: FastMCP 4 requires `mcp>=2.2`, so the transitive MCP SDK
+- **MCP SDK 2.x**: FastMCP ≥4.1.2 requires `mcp>=2.2` (4.2.0, as locked, requires `mcp>=2.3`), so the transitive MCP SDK
   moves from 1.27 to 2.3. Clients negotiating the 2026 protocol era read the
   server name, version, and instructions via `server/discover` instead of
   the `initialize` handshake; legacy clients still get `serverInfo`. Tool,
