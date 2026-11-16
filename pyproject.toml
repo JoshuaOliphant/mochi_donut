@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     # MCP Server Framework
-    "fastmcp>=3.0.0",
+    "fastmcp>=4.1.2",
 
     # HTTP Client for JinaAI and Mochi APIs
     "httpx>=0.28.1",

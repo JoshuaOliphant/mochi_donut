@@ -21,7 +21,7 @@ The server exposes:
 - **Resources**: `matuschak://principles`, `matuschak://examples`
 - **Prompts**: `generate_flashcards`, `review_flashcards`
 
-Core business logic lives in `_impl` functions (e.g., `_fetch_url_impl`) which are wrapped by `@mcp.tool` decorators. Test the `_impl` functions directly, or call the decorated wrappers directly — under FastMCP 3.x the `@mcp.tool`/`@mcp.resource`/`@mcp.prompt` decorators return the original function unchanged, so `fetch_url(...)`, `get_principles()`, etc. are all directly callable.
+Core business logic lives in `_impl` functions (e.g., `_fetch_url_impl`) which are wrapped by `@mcp.tool` decorators. Test the `_impl` functions directly, or call the decorated wrappers directly — under FastMCP 3.x and 4.x the `@mcp.tool`/`@mcp.resource`/`@mcp.prompt` decorators return the original function unchanged, so `fetch_url(...)`, `get_principles()`, etc. are all directly callable.
 
 The Mochi API uses **HTTP Basic auth** (the API key is the username, password blank). Cards are created as two-sided markdown: a single `content` field with the front and back separated by a `---` line (`"Question\n---\nAnswer"`), which works on any deck without a template. Tags go in the `manual-tags` field.
 
@@ -56,7 +56,7 @@ Whenever you add or change code:
 4. Prefer making code testable (extract `_impl` helpers, dependency-inject
    side effects) over carving out exemptions.
 
-Under FastMCP 3.x the `@mcp.tool`, `@mcp.resource`, and `@mcp.prompt`
+Under FastMCP 3.x and 4.x the `@mcp.tool`, `@mcp.resource`, and `@mcp.prompt`
 decorators return the **original function** unchanged (not a
 `FunctionTool`/`FunctionResource`/`FunctionPrompt` wrapper as in 2.x). To
 cover the body, import the decorated function and call it directly — see
@@ -71,7 +71,8 @@ mcp.get_prompt(name)` (the old private `_tool_manager`/`_resource_manager`/
 The version is defined **once**, in `pyproject.toml`. Both
 `mochi_donut.__version__` and the running server's advertised version
 (`FastMCP(..., version=__version__)`, surfaced as `serverInfo.version` in the
-MCP handshake) read it from the installed package metadata via
+MCP handshake, or via `server/discover` under the 2026 protocol era that
+FastMCP 4 negotiates by default) read it from the installed package metadata via
 `importlib.metadata.version("mochi-donut")`, so they never drift. To cut a
 release: bump `version` in `pyproject.toml`, add a `CHANGELOG.md` entry, and
 push a `vX.Y.Z` tag. Pushing the tag triggers `.github/workflows/release.yml`,
