@@ -11,6 +11,23 @@ The version is defined once in `pyproject.toml`; the package and the running
 MCP server (`serverInfo.version`) both read it from the installed package
 metadata, so it never drifts.
 
+## [0.6.0]
+
+### Security
+- Upgraded to **FastMCP 4.x** (`fastmcp>=4.1.2`, locked at 4.2.0) and
+  refreshed the lockfile to clear every PyPI advisory with an available fix:
+  pyjwt 2.15.1, authlib 1.9.8, joserfc 1.8.0, starlette 1.10.0,
+  cryptography 50.0.2, python-multipart 0.0.34, pydantic-settings 2.16.3,
+  anyio 4.16.0, opentelemetry-api 1.45.2, dnspython 2.9.2, certifi
+  2026.10.23.
+
+### Changed
+- **MCP SDK 2.x**: FastMCP 4 requires `mcp>=2.2`, so the transitive MCP SDK
+  moves from 1.27 to 2.3. Clients negotiating the 2026 protocol era read the
+  server name, version, and instructions via `server/discover` instead of
+  the `initialize` handshake; legacy clients still get `serverInfo`. Tool,
+  resource, and prompt names are unchanged.
+
 ## [0.5.0]
 
 ### Fixed
