@@ -69,7 +69,7 @@ class TestResources:
     def test_principles_resource_returns_content(self):
         """Invoke the principles resource fn to cover its body.
 
-        Under FastMCP 3.x the @mcp.resource decorator returns the original
+        Under FastMCP 3.x and 4.x the @mcp.resource decorator returns the original
         function unchanged, so it can be called directly.
         """
         assert get_principles() == MATUSCHAK_PRINCIPLES
@@ -93,7 +93,7 @@ class TestPrompts:
     def test_generate_flashcards_prompt_renders(self):
         """Invoke the generate_flashcards prompt fn to cover its body.
 
-        Under FastMCP 3.x the @mcp.prompt decorator returns the original
+        Under FastMCP 3.x and 4.x the @mcp.prompt decorator returns the original
         function unchanged, so it can be called directly.
         """
         rendered = generate_flashcards(content="hello world", topic="greetings")
@@ -1007,7 +1007,7 @@ class TestServerConfiguration:
 class TestToolWrappers:
     """Invoke the @mcp.tool wrapper functions directly to cover their bodies.
 
-    Under FastMCP 3.x the @mcp.tool decorator returns the original function
+    Under FastMCP 3.x and 4.x the @mcp.tool decorator returns the original function
     unchanged, so the wrappers imported from the module are directly callable.
     """
 
